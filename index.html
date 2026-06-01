@@ -145,6 +145,15 @@ textarea.fi{height:80px;resize:vertical;}
 .lbar-fill{height:100%;background:var(--ipb-green);animation:load 1.5s ease-in-out infinite;}
 @keyframes load{0%{width:0;margin-left:0;}50%{width:100%;}100%{width:0;margin-left:100%;}}
 .pf{text-align:center;padding:12px;font-size:11px;color:var(--ipb-text-light);border-top:1px solid var(--ipb-border);margin-top:8px;}
+.lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:500;align-items:center;justify-content:center;}
+.lightbox.open{display:flex;}
+.lightbox img{max-width:90vw;max-height:90vh;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.5);}
+.lightbox-close{position:fixed;top:20px;right:24px;color:#fff;font-size:32px;cursor:pointer;font-weight:300;line-height:1;}
+.item-photo{margin-top:6px;border-radius:6px;overflow:hidden;position:relative;}
+.item-photo img{width:100%;max-height:160px;object-fit:cover;cursor:pointer;display:block;border-radius:6px;}
+.item-photo-del{position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.5);color:#fff;border:none;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;}
+.photo-btn{padding:2px 8px;border-radius:4px;border:1px solid var(--ipb-green);background:var(--ipb-green-bg);color:var(--ipb-green-dark);cursor:pointer;font-size:11px;font-weight:600;}
+.photo-btn:hover{background:var(--ipb-green);color:#fff;}
 </style>
 </head>
 <body>
@@ -275,6 +284,29 @@ textarea.fi{height:80px;resize:vertical;}
 
 <div class="pf">IPB Plastic Sheets · Packaging — Ploegbord v3.0</div>
 
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <span class="lightbox-close" onclick="closeLightbox()">×</span>
+  <img id="lightbox-img" src="" alt="">
+</div>
+
+<div class="modal-bg" id="photo-modal-bg" style="display:none;position:fixed;inset:0;background:rgba(15,30,61,.55);z-index:300;align-items:center;justify-content:center;">
+  <div class="modal">
+    <div class="mh"><span class="mt">Foto toevoegen</span><button class="mx" onclick="closePhotoModal()">×</button></div>
+    <div class="mb">
+      <label class="fl">Foto kiezen (wordt automatisch verkleind)</label>
+      <input type="file" id="photo-file" accept="image/*" class="fi" style="padding:6px;">
+      <div id="photo-preview" style="margin-top:10px;display:none;">
+        <img id="photo-preview-img" style="width:100%;border-radius:8px;max-height:200px;object-fit:cover;">
+        <div style="font-size:11px;color:var(--ipb-text-muted);margin-top:4px;" id="photo-size-label"></div>
+      </div>
+    </div>
+    <div class="mf">
+      <button class="bc" onclick="closePhotoModal()">Annuleer</button>
+      <button class="bs" id="photo-save-btn" onclick="savePhoto()">📷 Opslaan</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="modal-bg">
   <div class="modal">
     <div class="mh"><span class="mt" id="modal-title">Toevoegen</span><button class="mx" onclick="closeModal()">×</button></div>
@@ -287,6 +319,10 @@ textarea.fi{height:80px;resize:vertical;}
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, set, push, remove, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+// Laadscherm direct verbergen
+document.getElementById('loading').classList.add('hide');
+setTimeout(function(){ document.getElementById('loading').style.display='none'; }, 400);
 
 const app = initializeApp({
   apiKey:"AIzaSyAMfKRUF-ClkrohVO6PbfqAWp5NB-_9_UI",
@@ -326,6 +362,12 @@ function dp(s){return dept+'/'+s;}
 
 function tick(){const d=new Date();document.getElementById('clock').textContent=p2(d.getHours())+':'+p2(d.getMinutes())+':'+p2(d.getSeconds());}
 tick();setInterval(tick,1000);
+
+// Force hide loading after 5 seconds as safety net
+setTimeout(function(){
+  const l=document.getElementById('loading');
+  if(l&&l.style.display!=='none'){l.classList.add('hide');setTimeout(()=>l.style.display='none',400);}
+}, 5000);
 
 onValue(ref(db,'.info/connected'),snap=>{
   const ok=snap.val();
@@ -469,8 +511,13 @@ const DC={planning:{cls:'n-planning',chip:'cp',label:'Planning'},quality:{cls:'n
 function rDept(key,item){
   const c=DC[item.dept]||DC.general;
   const el=document.createElement('div');el.className='note '+c.cls;el.id='i-'+key;
-  el.innerHTML='<div class="nm"><span class="chip '+c.chip+'">'+c.label+'</span><span>'+(item.time||'')+'</span></div><div class="nt">'+(item.text||'')+'</div>';
-  el.appendChild(db2(dept+'/dept/'+key));return el;
+  el.innerHTML='<div class="nm"><span class="chip '+c.chip+'">'+c.label+'</span><span>'+(item.time||'')+'</span></div><div class="nt" style="padding-right:24px;">'+(item.text||'')+'</div>';
+  el.appendChild(db2(dept+'/dept/'+key));
+  // Photo button
+  const pb=document.createElement('button');pb.className='photo-btn';pb.textContent='📷';pb.style.marginTop='6px';
+  pb.onclick=function(){openPhotoModal('dept',key);};el.appendChild(pb);
+  if(item.photo&&item.photo.data){const wrap=document.createElement('div');wrap.className='item-photo';const img=document.createElement('img');img.src=item.photo.data;img.onclick=function(){openLightbox(item.photo.data);};const d2=document.createElement('button');d2.className='item-photo-del';d2.innerHTML='🗑';d2.onclick=function(){deleteItemPhoto('dept',key);};wrap.appendChild(img);wrap.appendChild(d2);el.appendChild(wrap);}
+  return el;
 }
 const EC={info:{cls:'ep-info',ico:'ℹ'},warn:{cls:'ep-warn',ico:'⚠'},urgent:{cls:'ep-urgent',ico:'!'}};
 function rEsc(key,item){
@@ -478,12 +525,17 @@ function rEsc(key,item){
   const tl=item.to==='colleague'?'→ Collega ploegchef':'→ Afdelingshoofd / Directie';
   const row=document.createElement('div');row.className='er';row.id='i-'+key;
   row.innerHTML='<div class="ei '+c.cls+'">'+c.ico+'</div><div style="flex:1"><div class="et">'+(item.label||'')+'</div><div class="ed">'+(item.detail||'')+'</div><div class="eto">'+tl+'</div></div>';
-  row.appendChild(db2(dept+'/escalations/'+key));return row;
+  row.appendChild(db2(dept+'/escalations/'+key));
+  addPhotoToRow(row,'escalations',key,item.photo);return row;
 }
 function rGen(key,item){
   const el=document.createElement('div');el.className='note';el.id='i-'+key;
-  el.innerHTML='<div class="nm"><strong style="color:var(--ipb-navy)">'+(item.cat||'')+'</strong><span>'+(item.time||'')+'</span></div><div class="nt">'+(item.text||'')+'</div>';
-  el.appendChild(db2(dept+'/general/'+key));return el;
+  el.innerHTML='<div class="nm"><strong style="color:var(--ipb-navy)">'+(item.cat||'')+'</strong><span>'+(item.time||'')+'</span></div><div class="nt" style="padding-right:24px;">'+(item.text||'')+'</div>';
+  el.appendChild(db2(dept+'/general/'+key));
+  const pb=document.createElement('button');pb.className='photo-btn';pb.textContent='📷';pb.style.marginTop='6px';
+  pb.onclick=function(){openPhotoModal('general',key);};el.appendChild(pb);
+  if(item.photo&&item.photo.data){const wrap=document.createElement('div');wrap.className='item-photo';const img=document.createElement('img');img.src=item.photo.data;img.onclick=function(){openLightbox(item.photo.data);};const d2=document.createElement('button');d2.className='item-photo-del';d2.innerHTML='🗑';d2.onclick=function(){deleteItemPhoto('general',key);};wrap.appendChild(img);wrap.appendChild(d2);el.appendChild(wrap);}
+  return el;
 }
 const TL={solved:'✅ Opgelost',partial:'🔧 Gedeeltelijk',pending:'⏳ In behandeling'};
 const TC={solved:'st-ok',partial:'st-warn',pending:'st-off'};
@@ -547,7 +599,12 @@ function rIncident(key,item){
   });
   sel.onchange=()=>update(ref(db,'incidents/'+key),{status:sel.value});
   card.querySelector('.if').insertBefore(sel,card.querySelector('.if').lastElementChild);
-  card.appendChild(db2('incidents/'+key));return card;
+  card.appendChild(db2('incidents/'+key));
+  // Photo button
+  const pb=document.createElement('button');pb.className='photo-btn';pb.style.cssText='margin:8px 14px 10px;display:block;';pb.textContent='📷 Foto toevoegen';
+  pb.onclick=function(){openPhotoModal('incidents',key);};card.appendChild(pb);
+  if(item.photo&&item.photo.data){const wrap=document.createElement('div');wrap.style.cssText='margin:0 14px 10px;border-radius:6px;overflow:hidden;position:relative;';const img=document.createElement('img');img.src=item.photo.data;img.style.cssText='width:100%;max-height:200px;object-fit:cover;cursor:pointer;display:block;border-radius:6px;';img.onclick=function(){openLightbox(item.photo.data);};const d2=document.createElement('button');d2.className='item-photo-del';d2.innerHTML='🗑';d2.style.cssText='position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,.5);color:#fff;border:none;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;';d2.onclick=function(){deleteItemPhoto('incidents',key);};wrap.appendChild(img);wrap.appendChild(d2);card.appendChild(wrap);}
+  return card;
 }
 onValue(ref(db,'incidents'),snap=>{
   state.incidents=snap.val()||{};
@@ -684,11 +741,119 @@ window.saveItem=function(){
   closeModal();showToast('Opgeslagen ✓');
 };
 document.getElementById('modal-bg').addEventListener('click',e=>{if(e.target.id==='modal-bg')closeModal();});
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
 window.showToast=function(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800);};
 
 rebindLists();
 rebindArch();
+
+// ===== INLINE PHOTOS =====
+let currentPhotoTarget = null; // {collection, key} where photo will be saved
+
+function compressImage(file, callback) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      const MAX = 800;
+      let w = img.width, h = img.height;
+      if (w > h) { if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; } }
+      else { if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; } }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      const compressed = canvas.toDataURL('image/jpeg', 0.7);
+      const kb = Math.round(compressed.length * 0.75 / 1024);
+      callback(compressed, kb);
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+window.openPhotoModal = function(collection, key) {
+  currentPhotoTarget = {collection, key};
+  const modal = document.getElementById('photo-modal-bg');
+  modal.style.display = 'flex';
+  document.getElementById('photo-file').value = '';
+  document.getElementById('photo-preview').style.display = 'none';
+  document.getElementById('photo-file').onchange = function() {
+    const file = this.files[0]; if (!file) return;
+    compressImage(file, function(data, kb) {
+      document.getElementById('photo-preview').style.display = 'block';
+      document.getElementById('photo-preview-img').src = data;
+      document.getElementById('photo-size-label').textContent = 'Grootte na compressie: ~' + kb + ' KB';
+    });
+  };
+};
+
+window.closePhotoModal = function() {
+  document.getElementById('photo-modal-bg').style.display = 'none';
+  currentPhotoTarget = null;
+};
+
+window.savePhoto = function() {
+  if (!currentPhotoTarget) return;
+  const file = document.getElementById('photo-file').files[0];
+  if (!file) { alert('Kies eerst een foto.'); return; }
+  const btn = document.getElementById('photo-save-btn');
+  btn.disabled = true; btn.textContent = '⏳ Bezig...';
+  compressImage(file, function(data, kb) {
+    const col = currentPhotoTarget.collection;
+    const path = col === 'incidents'
+      ? 'incidents/' + currentPhotoTarget.key + '/photo'
+      : dept + '/' + col + '/' + currentPhotoTarget.key + '/photo';
+    set(ref(db, path), {data, kb, time: ts()}).then(function() {
+      closePhotoModal();
+      showToast('Foto opgeslagen (~' + kb + ' KB) ✓');
+      btn.disabled = false; btn.textContent = '📷 Opslaan';
+    });
+  });
+};
+
+window.deleteItemPhoto = function(collection, key) {
+  if (window.confirm('Foto verwijderen?')) {
+    const path = collection === 'incidents'
+      ? 'incidents/' + key + '/photo'
+      : dept + '/' + collection + '/' + key + '/photo';
+    remove(ref(db, path));
+  }
+};
+
+// Add photo button and display to a row element
+function addPhotoToRow(el, collection, key, photo) {
+  // Add photo button in s-right or p-row
+  const photoBtn = document.createElement('button');
+  photoBtn.className = 'photo-btn';
+  photoBtn.title = 'Foto toevoegen';
+  photoBtn.textContent = '📷';
+  photoBtn.onclick = function(e) { e.stopPropagation(); openPhotoModal(collection, key); };
+  const right = el.querySelector('.srr') || el.querySelector('.s-right');
+  if (right) right.insertBefore(photoBtn, right.firstChild);
+
+  // Show photo if exists
+  if (photo && photo.data) {
+    const wrap = document.createElement('div'); wrap.className = 'item-photo';
+    const img = document.createElement('img'); img.src = photo.data; img.alt = '';
+    img.onclick = function() { openLightbox(photo.data); };
+    const delBtn2 = document.createElement('button'); delBtn2.className = 'item-photo-del';
+    delBtn2.innerHTML = '🗑'; delBtn2.title = 'Foto verwijderen';
+    delBtn2.onclick = function(e) { e.stopPropagation(); deleteItemPhoto(collection, key); };
+    wrap.appendChild(img); wrap.appendChild(delBtn2);
+    el.appendChild(wrap);
+  }
+}
+
+// Lightbox
+window.openLightbox = function(src) {
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox').classList.add('open');
+};
+window.closeLightbox = function() {
+  document.getElementById('lightbox').classList.remove('open');
+};
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') { closeModal(); closeLightbox(); closePhotoModal(); }
+});
 </script>
 </body>
 </html>
