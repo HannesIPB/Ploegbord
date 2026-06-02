@@ -693,7 +693,8 @@ function sOD(snap){
 }
 function sLines(title,data){
   if(!data||!Object.keys(data).length) return '';
-  const LINES=['L11','L12','L14','L15','L16','L17','L18','IDE'];
+  const deptLines={'P1':['L11','L12','L14','L15','L16','L17','L18','IDE'],'P4':['L41','L42'],'Converting':[]};
+  const LINES=deptLines[snap.dept]||deptLines['P1'];
   const rows=LINES.map(function(l){
     const active=data[l]===true;
     return '<span style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;margin:2px;background:'+(active?'#eef7e9':'#fef1f1')+';color:'+(active?'#2a6018':'#8b1a1a')+';border:1px solid '+(active?'#6ab04c':'#e24b4a')+';">'+l+' '+(active?'●':'○')+'</span>';
@@ -776,12 +777,21 @@ rebindLists();
 rebindArch();
 
 // ===== ACTIEVE LIJNEN =====
-const LINES = ['L11','L12','L14','L15','L16','L17','L18','IDE'];
+const LINES_PER_DEPT = {
+  P1: ['L11','L12','L14','L15','L16','L17','L18','IDE'],
+  P4: ['L41','L42'],
+  Converting: []
+};
+
+function getLines() { return LINES_PER_DEPT[dept] || []; }
 
 function initLines() {
+  const card = document.querySelector('.lines-card');
+  const lines = getLines();
+  if (card) card.style.display = lines.length === 0 ? 'none' : 'block';
   const body = document.getElementById('lines-body');
   body.innerHTML = '';
-  LINES.forEach(function(line) {
+  lines.forEach(function(line) {
     const div = document.createElement('div');
     div.className = 'line-toggle'; div.id = 'lt-'+line;
     div.innerHTML = '<span class="line-name">'+line+'</span><div class="toggle-sw" id="tsw-'+line+'"></div>';
@@ -798,7 +808,7 @@ function toggleLine(line) {
 
 function applyLines(linesData) {
   state.lines = linesData || {};
-  LINES.forEach(function(line) {
+  getLines().forEach(function(line) {
     const active = state.lines[line] === true;
     const div = document.getElementById('lt-'+line);
     const sw = document.getElementById('tsw-'+line);
@@ -810,12 +820,12 @@ function applyLines(linesData) {
 let linesUnsub = null;
 function rebindLines() {
   if (linesUnsub) linesUnsub();
+  initLines(); // rebuild toggles for current dept
   linesUnsub = onValue(ref(db, dept+'/lines'), function(snap) {
     applyLines(snap.val());
   });
 }
 
-initLines();
 rebindLines();
 
 // ===== INLINE PHOTOS =====
