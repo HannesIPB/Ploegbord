@@ -199,6 +199,7 @@ textarea.fi{height:80px;resize:vertical;}
     </select>
     <button class="nav-btn" onclick="showPage('archive',this)">🗂 Archief</button>
     <button class="nav-btn" onclick="showPage('incidents',this)">⚠️ Schadegeval / Arbeidsongeval</button>
+    <a href="https://maintenance-ipb.web.app" target="_blank" style="padding:5px 12px;border-radius:6px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1);color:#fff;font-size:12px;font-weight:600;text-decoration:none;display:flex;align-items:center;gap:5px;">🔧 Technische Dienst</a>
     <span style="margin-left:4px;"><span class="live-dot" id="live-dot"></span><span class="live-label" id="live-lbl">Verbinden...</span></span>
     <div class="clock" id="clock">--:--:--</div>
   </div>
@@ -277,9 +278,9 @@ textarea.fi{height:80px;resize:vertical;}
     <div class="card"><div class="ch"><div class="chl"><div class="ci" style="background:#fff8ec;">📋</div><span class="ct">Berichten van afdelingen</span><span class="cc" id="cnt-dept">0</span></div><button class="ab" onclick="openModal('dept')">+</button></div><div class="cb" id="list-dept"></div></div>
     <div class="card"><div class="ch"><div class="chl"><div class="ci" style="background:#f2eefe;">↑</div><span class="ct">Escalaties naar afdelingshoofd of directie</span><span class="cc" id="cnt-esc">0</span></div><button class="ab" onclick="openModal('escalation')">+</button></div><div class="cb" id="list-esc"></div></div>
   </div>
-  <div class="g2">
+  <div class="g1">
     <div class="card"><div class="ch"><div class="chl"><div class="ci" style="background:#f0f2f7;">📝</div><span class="ct">Algemene opmerkingen</span><span class="cc" id="cnt-gen">0</span></div><button class="ab" onclick="openModal('general')">+</button></div><div class="cb" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px;" id="list-gen"></div></div>
-    <div class="card"><div class="ch"><div class="chl"><div class="ci" style="background:#edf3fe;">🔧</div><span class="ct">Technische Dienst</span></div><a href="https://maintenance-ipb.web.app" target="_blank" style="padding:6px 16px;border-radius:6px;background:#1a2e5a;color:#fff;font-size:12px;font-weight:700;text-decoration:none;display:flex;align-items:center;gap:6px;">&#128279; Open TD systeem</a></div><div class="cb" style="padding:12px 14px;"><a href="https://maintenance-ipb.web.app" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:10px;padding:16px;border-radius:8px;background:#edf3fe;border:2px dashed #b0c8f0;text-decoration:none;color:#1a2e5a;font-size:14px;font-weight:600;">🔧 Klik hier om naar het systeem van de Technische Dienst te gaan</a></div></div>
+
   </div>
 </div>
 
