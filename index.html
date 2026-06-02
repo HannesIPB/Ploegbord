@@ -671,7 +671,7 @@ function renderArch(){
     '<div class="sbody">'+
       sOD(snap)+
       sInc('Schadegeval / Arbeidsongeval ⚠️',snap.incidents)+
-      sLines('Actieve lijnen ⚡',snap.lines)+
+      sLines('Actieve lijnen ⚡',snap.lines,snap.dept)+
       sSec('Veiligheid 🛡',snap.safety,v=>'<div class="sitem"><div><div style="font-weight:600;">'+v.label+'</div><div style="font-size:11px;color:var(--ipb-text-muted);">'+(v.sub||'')+'</div></div><span class="badge '+bc(v.status)+'" style="cursor:default">'+(SL[v.status]||v.status)+'</span></div>')+
       sSec('Machines ⚙',snap.machines,v=>'<div class="sitem"><div><div style="font-weight:600;">'+v.label+'</div><div style="font-size:11px;color:var(--ipb-text-muted);">'+(v.sub||'')+'</div></div><span class="badge '+bc(v.status)+'" style="cursor:default">'+(ML[v.status]||v.status)+'</span></div>')+
       sSec('Mensen 👤',snap.people,v=>'<div class="sitem"><div><div style="font-weight:600;">'+v.name+'</div><div style="font-size:11px;color:var(--ipb-text-muted);">'+(v.role||'')+'</div></div><span class="badge '+bc(v.status)+'" style="cursor:default">'+(PL[v.status]||v.status)+'</span></div>')+
@@ -691,10 +691,10 @@ function sOD(snap){
     '<div class="sodb '+(snap.si?'':'pending')+'"><div class="sodn">'+(snap.ho||'—')+'</div><div class="sodr">Overnemer</div><div class="sods '+(snap.si?'':'pending')+'">'+(snap.si?'✓ Overgenomen: '+snap.si:'⏳ Niet ondertekend')+'</div></div>'+
   '</div>';
 }
-function sLines(title,data){
+function sLines(title,data,snapDept){
   if(!data||!Object.keys(data).length) return '';
   const deptLines={'P1':['L11','L12','L14','L15','L16','L17','L18','IDE'],'P4':['L41','L42'],'Converting':[]};
-  const LINES=deptLines[snap.dept]||deptLines['P1'];
+  const LINES=deptLines[snapDept]||deptLines['P1'];
   const rows=LINES.map(function(l){
     const active=data[l]===true;
     return '<span style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;margin:2px;background:'+(active?'#eef7e9':'#fef1f1')+';color:'+(active?'#2a6018':'#8b1a1a')+';border:1px solid '+(active?'#6ab04c':'#e24b4a')+';">'+l+' '+(active?'●':'○')+'</span>';
