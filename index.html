@@ -250,6 +250,7 @@ textarea.fi{height:80px;resize:vertical;}
     <button class="sign-btn" id="od-in-btn" onclick="signHandover('incoming')">✍ Ploeg overgenomen</button>
   </div>
   <button class="snap-btn" onclick="takeSnapshot()">📸 Snapshot archief</button>
+  <button class="snap-btn" id="absent-btn" onclick="signAbsent()" style="background:#f5a623;border-color:#f5a623;" title="Overnemer afwezig">⚠ Overnemer afwezig</button>
 </div>
 
 <div class="main">
@@ -462,9 +463,59 @@ onValue(ref(db,'P1/shift'),snap=>{
   if(d.so){ob.classList.add('signed');os.style.display='block';os.textContent='✓ Afgesloten: '+d.so;oBtn.textContent='✓ Afgesloten';oBtn.className='sign-btn done';}
   else{ob.classList.remove('signed');os.style.display='none';oBtn.textContent='✍ Ploeg afgesloten';oBtn.className='sign-btn';}
   const ib=document.getElementById('od-in'),iBtn=document.getElementById('od-in-btn'),is2=document.getElementById('od-in-stamp');
-  if(d.si){ib.classList.add('signed');is2.style.display='block';is2.textContent='✓ Overgenomen: '+d.si;iBtn.textContent='✓ Overgenomen';iBtn.className='sign-btn done';}
-  else{ib.classList.remove('signed');is2.style.display='none';iBtn.textContent='✍ Ploeg overgenomen';iBtn.className='sign-btn';}
+  if(d.overnemerAfwezig){
+    ib.style.borderColor='#f5a623';ib.style.background='#fff8ec';
+    is2.style.display='block';is2.textContent='⚠ Afwezig: '+(d.afwezigReden||'');is2.style.color='#7a4a00';
+    iBtn.textContent='⚠ Afwezig';iBtn.className='sign-btn done';iBtn.style.cssText='background:transparent;color:#7a4a00;border-color:#f5a623;cursor:default;margin-left:auto;padding:6px 14px;border-radius:6px;border:1.5px solid;font-size:12px;font-weight:700;';
+  } else if(d.si){ib.classList.add('signed');ib.style.borderColor='';ib.style.background='';is2.style.display='block';is2.textContent='✓ Overgenomen: '+d.si;is2.style.color='';iBtn.textContent='✓ Overgenomen';iBtn.className='sign-btn done';}
+  else{ib.classList.remove('signed');ib.style.borderColor='';ib.style.background='';is2.style.display='none';iBtn.textContent='✍ Ploeg overgenomen';iBtn.className='sign-btn';iBtn.style.cssText='';}
 });
+
+window.signAbsent = function() {
+  const d = state.shift;
+  const chief = d.chief || '—';
+  const ts2 = ts();
+  document.getElementById('modal-title').textContent = 'Overnemer afwezig';
+  document.getElementById('modal-body').innerHTML = `
+    <div style="margin-bottom:12px;">
+      <div style="font-size:14px;color:var(--ipb-text-muted);margin-bottom:16px;line-height:1.6;">
+        De overnemer <strong>${d.ho||'—'}</strong> is niet aanwezig.<br>
+        <strong>${chief}</strong> sluit de ploeg af en registreert de reden.
+      </div>
+      <label class="fl">Reden afwezigheid</label>
+      <select class="fi" id="absent-reason">
+        <option value="Ziekte">Ziekte</option>
+        <option value="Verlof">Verlof</option>
+        <option value="Familiaal verlof">Familiaal verlof</option>
+        <option value="Arbeidsongeval">Arbeidsongeval</option>
+        <option value="Andere">Andere</option>
+      </select>
+      <label class="fl">Bijkomende opmerking (optioneel)</label>
+      <input class="fi" id="absent-note" placeholder="bv. vervanger aangesteld, ...">
+      <div style="margin-top:12px;padding:10px 12px;background:#fff8ec;border-radius:8px;border-left:3px solid #f5a623;font-size:13px;color:#7a4a00;">
+        ⚠️ <strong>${chief}</strong> tekent af voor beide — afsluiting én overdracht.
+      </div>
+    </div>`;
+  const sb = document.getElementById('msb');
+  sb.textContent = '✍ Bevestigen & afsluiten';
+  sb.onclick = function() {
+    const reason = document.getElementById('absent-reason').value;
+    const note = document.getElementById('absent-note').value;
+    const stamp = ts2 + ' (' + reason + (note ? ' — ' + note : '') + ')';
+    const absentMsg = 'AFWEZIG: ' + reason + (note ? ' — ' + note : '');
+    update(ref(db, 'P1/shift'), {
+      so: stamp,
+      si: absentMsg,
+      overnemerAfwezig: true,
+      afwezigReden: reason,
+      afwezigNota: note || ''
+    });
+    closeModal();
+    showToast('Ploeg afgesloten — overnemer geregistreerd als afwezig ✓');
+    setTimeout(function() { takeSnapshot(true); }, 800);
+  };
+  document.getElementById('modal-bg').classList.add('open');
+};
 
 window.signHandover=function(dir){
   const d=state.shift,name=dir==='outgoing'?(d.chief||'?'):(d.ho||'?'),role=dir==='outgoing'?'aftredende ploegchef':'overnemer',t=ts();
@@ -486,7 +537,11 @@ window.takeSnapshot=function(auto=false){
     timestamp:t,dept,deptLabel:DL[dept]||dept,
     shift:d.shift||'',sn:d.sn||SN[d.shift]||'',
     chief:d.chief||'',ho:d.ho||'',
-    so:d.so||null,si:d.si||null,auto,reason,
+    so:d.so||null,si:d.si||null,
+    overnemerAfwezig:d.overnemerAfwezig||false,
+    afwezigReden:d.afwezigReden||'',
+    afwezigNota:d.afwezigNota||'',
+    auto,reason,
     lines:state.lines||{},safety:state.safety||{},machines:state.machines||{},people:state.people||{},
     dept2:state.dept||{},escalations:state.escalations||{},general:state.general||{},
     td:state.td||{},incidents:state.incidents||{}
@@ -665,6 +720,7 @@ function renderArch(){
         '<span class="sdt">📅 '+snap.timestamp+'</span>'+
         (snap.reason?'<span style="font-size:11px;color:rgba(255,255,255,.6);">'+snap.reason+'</span>':'')+
         (incCnt>0?'<span style="background:#e24b4a;color:#fff;font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;">⚠️ '+incCnt+' schadegeval'+(incCnt>1?'len':'')+'</span>':'')+
+        (snap.overnemerAfwezig?'<span style="background:#f5a623;color:#fff;font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;">⚠ Overnemer afwezig</span>':'')+
       '</div>'+
       '<div style="display:flex;align-items:center;gap:10px;"><div class="ssigs">'+outSig+inSig+'</div><span class="schev">▼</span></div>'+
     '</div>'+
@@ -685,10 +741,15 @@ function renderArch(){
 }
 function sOD(snap){
   if(!snap.chief&&!snap.ho)return '';
+  const inBlockStyle = snap.overnemerAfwezig ? 'border-color:#f5a623;background:#fff8ec;' : '';
+  const inStampStyle = snap.overnemerAfwezig ? 'color:#7a4a00;' : '';
+  const inStampText = snap.overnemerAfwezig
+    ? '⚠ Afwezig: '+(snap.afwezigReden||'')+(snap.afwezigNota?' — '+snap.afwezigNota:'')
+    : (snap.si ? '✓ Overgenomen: '+snap.si : '⏳ Niet ondertekend');
   return '<div class="sod">'+
     '<div class="sodb '+(snap.so?'':'pending')+'"><div class="sodn">'+(snap.chief||'—')+'</div><div class="sodr">Aftredende ploegchef</div><div class="sods '+(snap.so?'':'pending')+'">'+(snap.so?'✓ Afgesloten: '+snap.so:'⏳ Niet ondertekend')+'</div></div>'+
     '<div style="display:flex;align-items:center;font-size:20px;color:var(--ipb-text-light);">→</div>'+
-    '<div class="sodb '+(snap.si?'':'pending')+'"><div class="sodn">'+(snap.ho||'—')+'</div><div class="sodr">Overnemer</div><div class="sods '+(snap.si?'':'pending')+'">'+(snap.si?'✓ Overgenomen: '+snap.si:'⏳ Niet ondertekend')+'</div></div>'+
+    '<div class="sodb" style="'+inBlockStyle+'"><div class="sodn">'+(snap.ho||'—')+'</div><div class="sodr">Overnemer</div><div class="sods" style="'+inStampStyle+'">'+inStampText+'</div></div>'+
   '</div>';
 }
 function sLines(title,data,snapDept){
