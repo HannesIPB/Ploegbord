@@ -148,6 +148,16 @@ textarea.fi{height:80px;resize:vertical;}
 .lbar-fill{height:100%;background:var(--ipb-green);animation:load 1.5s ease-in-out infinite;}
 @keyframes load{0%{width:0;margin-left:0;}50%{width:100%;}100%{width:0;margin-left:100%;}}
 .pf{text-align:center;padding:12px;font-size:11px;color:var(--ipb-text-light);border-top:1px solid var(--ipb-border);margin-top:8px;}
+.lines-card{background:var(--ipb-white);border-radius:var(--r);border:1px solid var(--ipb-border);box-shadow:var(--shadow-sm);overflow:hidden;margin-bottom:14px;}
+.lines-body{padding:10px 14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+.line-toggle{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:var(--rs);border:1.5px solid var(--ipb-border);background:var(--ipb-offwhite);cursor:pointer;transition:all .15s;user-select:none;}
+.line-toggle.active{background:var(--ipb-green-bg);border-color:var(--ipb-green);}
+.line-toggle.inactive{background:#fef1f1;border-color:#e24b4a;}
+.line-name{font-size:13px;font-weight:700;color:var(--ipb-navy);}
+.toggle-sw{width:36px;height:20px;border-radius:10px;background:#e24b4a;position:relative;transition:background .2s;flex-shrink:0;}
+.toggle-sw.on{background:var(--ipb-green);}
+.toggle-sw::after{content:'';position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);}
+.toggle-sw.on::after{left:19px;}
 .lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:500;align-items:center;justify-content:center;}
 .lightbox.open{display:flex;}
 .lightbox img{max-width:90vw;max-height:90vh;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.5);}
@@ -244,7 +254,12 @@ textarea.fi{height:80px;resize:vertical;}
 
 <div class="main">
 <div class="page active" id="page-board">
-  <div class="g3">
+  <div class="lines-card">
+  <div class="ch"><div class="chl"><div class="ci" style="background:#edf3fe;">⚡</div><span class="ct">Actieve lijnen</span></div></div>
+  <div class="lines-body" id="lines-body"></div>
+</div>
+
+<div class="g3">
     <div class="card"><div class="ch"><div class="chl"><div class="ci" style="background:#fef1f1;">🛡</div><span class="ct">Veiligheid</span><span class="cc" id="cnt-safety">0</span></div><button class="ab" onclick="openModal('safety')">+</button></div><div class="cb" id="list-safety"></div></div>
     <div class="card"><div class="ch"><div class="chl"><div class="ci" style="background:#edf3fe;">⚙</div><span class="ct">Machines</span><span class="cc" id="cnt-machine">0</span></div><button class="ab" onclick="openModal('machine')">+</button></div><div class="cb" id="list-machine"></div></div>
     <div class="card"><div class="ch"><div class="chl"><div class="ci" style="background:var(--ipb-green-bg);">👤</div><span class="ct">Mensen</span><span class="cc" id="cnt-people">0</span></div><button class="ab" onclick="openModal('people')">+</button></div><div class="cb" id="list-people"></div></div>
@@ -350,7 +365,7 @@ const OD = {
 const SN={vroeg:'Vroegploeg 05:00–13:00',laat:'Lateploeg 13:00–21:00',nacht:'Nachtploeg 21:00–05:00',weekenddag:'Weekend Dagploeg 05:00–13:00',weekendnacht:'Weekend Nachtploeg 21:00–05:00'};
 const DL={P1:'P1 — Productie',P4:'P4 — Productie',Converting:'Converting'};
 
-let dept='P1', state={shift:{},safety:{},machines:{},people:{},dept:{},escalations:{},general:{},td:{},incidents:{}};
+let dept='P1', state={shift:{},lines:{},safety:{},machines:{},people:{},dept:{},escalations:{},general:{},td:{},incidents:{}};
 let archFilter='all', unsubs=[], archUnsub=null, snapTimer=null;
 
 const p2=n=>String(n).padStart(2,'0');
@@ -402,7 +417,7 @@ window.switchDept=function(d){
   document.querySelectorAll('.p1f').forEach(b=>b.style.display=isP1?'':'none');
   archFilter='all';
   document.querySelectorAll('.afb').forEach(b=>b.classList.toggle('active',b.dataset.filter==='all'));
-  rebindLists();rebindArch();
+  rebindLists();rebindArch();rebindLines();
 };
 
 window.saveOpName=function(v){
@@ -472,7 +487,7 @@ window.takeSnapshot=function(auto=false){
     shift:d.shift||'',sn:d.sn||SN[d.shift]||'',
     chief:d.chief||'',ho:d.ho||'',
     so:d.so||null,si:d.si||null,auto,reason,
-    safety:state.safety||{},machines:state.machines||{},people:state.people||{},
+    lines:state.lines||{},safety:state.safety||{},machines:state.machines||{},people:state.people||{},
     dept2:state.dept||{},escalations:state.escalations||{},general:state.general||{},
     td:state.td||{},incidents:state.incidents||{}
   });
@@ -656,6 +671,7 @@ function renderArch(){
     '<div class="sbody">'+
       sOD(snap)+
       sInc('Schadegeval / Arbeidsongeval ⚠️',snap.incidents)+
+      sLines('Actieve lijnen ⚡',snap.lines)+
       sSec('Veiligheid 🛡',snap.safety,v=>'<div class="sitem"><div><div style="font-weight:600;">'+v.label+'</div><div style="font-size:11px;color:var(--ipb-text-muted);">'+(v.sub||'')+'</div></div><span class="badge '+bc(v.status)+'" style="cursor:default">'+(SL[v.status]||v.status)+'</span></div>')+
       sSec('Machines ⚙',snap.machines,v=>'<div class="sitem"><div><div style="font-weight:600;">'+v.label+'</div><div style="font-size:11px;color:var(--ipb-text-muted);">'+(v.sub||'')+'</div></div><span class="badge '+bc(v.status)+'" style="cursor:default">'+(ML[v.status]||v.status)+'</span></div>')+
       sSec('Mensen 👤',snap.people,v=>'<div class="sitem"><div><div style="font-weight:600;">'+v.name+'</div><div style="font-size:11px;color:var(--ipb-text-muted);">'+(v.role||'')+'</div></div><span class="badge '+bc(v.status)+'" style="cursor:default">'+(PL[v.status]||v.status)+'</span></div>')+
@@ -675,6 +691,16 @@ function sOD(snap){
     '<div class="sodb '+(snap.si?'':'pending')+'"><div class="sodn">'+(snap.ho||'—')+'</div><div class="sodr">Overnemer</div><div class="sods '+(snap.si?'':'pending')+'">'+(snap.si?'✓ Overgenomen: '+snap.si:'⏳ Niet ondertekend')+'</div></div>'+
   '</div>';
 }
+function sLines(title,data){
+  if(!data||!Object.keys(data).length) return '';
+  const LINES=['L11','L12','L14','L15','L16','L17','L18','IDE'];
+  const rows=LINES.map(function(l){
+    const active=data[l]===true;
+    return '<span style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;margin:2px;background:'+(active?'#eef7e9':'#fef1f1')+';color:'+(active?'#2a6018':'#8b1a1a')+';border:1px solid '+(active?'#6ab04c':'#e24b4a')+';">'+l+' '+(active?'●':'○')+'</span>';
+  }).join('');
+  return '<div class="ssec"><div class="sstitle">'+title+'</div><div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">'+rows+'</div></div>';
+}
+
 function sSec(title,data,rowFn){
   if(!data||!Object.keys(data).length)return '';
   return '<div class="ssec"><div class="sstitle">'+title+'</div><div class="sgrid">'+Object.values(data).map(rowFn).join('')+'</div></div>';
@@ -748,6 +774,49 @@ window.showToast=function(msg){const t=document.getElementById('toast');t.textCo
 
 rebindLists();
 rebindArch();
+
+// ===== ACTIEVE LIJNEN =====
+const LINES = ['L11','L12','L14','L15','L16','L17','L18','IDE'];
+
+function initLines() {
+  const body = document.getElementById('lines-body');
+  body.innerHTML = '';
+  LINES.forEach(function(line) {
+    const div = document.createElement('div');
+    div.className = 'line-toggle'; div.id = 'lt-'+line;
+    div.innerHTML = '<span class="line-name">'+line+'</span><div class="toggle-sw" id="tsw-'+line+'"></div>';
+    div.onclick = function() { toggleLine(line); };
+    body.appendChild(div);
+  });
+}
+
+function toggleLine(line) {
+  const current = (state.lines && state.lines[line]) === true;
+  const newVal = !current;
+  update(ref(db, dept+'/lines'), {[line]: newVal});
+}
+
+function applyLines(linesData) {
+  state.lines = linesData || {};
+  LINES.forEach(function(line) {
+    const active = state.lines[line] === true;
+    const div = document.getElementById('lt-'+line);
+    const sw = document.getElementById('tsw-'+line);
+    if (div) { div.className = 'line-toggle '+(active?'active':'inactive'); }
+    if (sw) { sw.className = 'toggle-sw'+(active?' on':''); }
+  });
+}
+
+let linesUnsub = null;
+function rebindLines() {
+  if (linesUnsub) linesUnsub();
+  linesUnsub = onValue(ref(db, dept+'/lines'), function(snap) {
+    applyLines(snap.val());
+  });
+}
+
+initLines();
+rebindLines();
 
 // ===== INLINE PHOTOS =====
 let currentPhotoTarget = null; // {collection, key} where photo will be saved
