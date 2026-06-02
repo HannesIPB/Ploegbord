@@ -158,6 +158,14 @@ textarea.fi{height:80px;resize:vertical;}
 .toggle-sw.on{background:var(--ipb-green);}
 .toggle-sw::after{content:'';position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);}
 .toggle-sw.on::after{left:19px;}
+.reply-section{margin-top:6px;border-top:1px solid var(--ipb-border);padding-top:6px;}
+.reply-item{padding:5px 8px;background:#f4f6fb;border-radius:6px;margin-bottom:4px;font-size:12px;border-left:2px solid var(--ipb-navy-light);position:relative;}
+.reply-item:last-child{margin-bottom:0;}
+.reply-meta{font-size:11px;color:var(--ipb-text-muted);margin-bottom:2px;display:flex;justify-content:space-between;align-items:center;}
+.reply-text{color:var(--ipb-text);line-height:1.4;padding-right:20px;}
+.reply-btn{padding:3px 10px;border-radius:4px;border:1px solid var(--ipb-navy-light);background:#edf3fe;color:var(--ipb-navy);cursor:pointer;font-size:11px;font-weight:600;margin-top:5px;display:inline-block;}
+.reply-btn:hover{background:var(--ipb-navy);color:#fff;}
+.reply-del{background:none;border:none;color:#c0392b;cursor:pointer;font-size:12px;padding:0;position:absolute;top:5px;right:6px;}
 .lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:500;align-items:center;justify-content:center;}
 .lightbox.open{display:flex;}
 .lightbox img{max-width:90vw;max-height:90vh;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.5);}
@@ -306,6 +314,22 @@ textarea.fi{height:80px;resize:vertical;}
 <div class="lightbox" id="lightbox" onclick="closeLightbox()">
   <span class="lightbox-close" onclick="closeLightbox()">×</span>
   <img id="lightbox-img" src="" alt="">
+</div>
+
+<div class="modal-bg" id="reply-modal-bg" style="display:none;position:fixed;inset:0;background:rgba(15,30,61,.55);z-index:300;align-items:center;justify-content:center;">
+  <div class="modal">
+    <div class="mh"><span class="mt">Reactie toevoegen</span><button class="mx" onclick="closeReplyModal()">x</button></div>
+    <div class="mb">
+      <label class="fl">Uw naam</label>
+      <input class="fi" id="reply-name" placeholder="Uw naam">
+      <label class="fl">Reactie</label>
+      <textarea class="fi" id="reply-text" placeholder="Typ uw reactie..." style="height:90px;resize:vertical;"></textarea>
+    </div>
+    <div class="mf">
+      <button class="bc" onclick="closeReplyModal()">Annuleer</button>
+      <button class="bs" id="reply-save-btn" onclick="saveReply()">💬 Versturen</button>
+    </div>
+  </div>
 </div>
 
 <div class="modal-bg" id="photo-modal-bg" style="display:none;position:fixed;inset:0;background:rgba(15,30,61,.55);z-index:300;align-items:center;justify-content:center;">
@@ -561,7 +585,8 @@ function rSafety(key,item){
   const r=document.createElement('div');r.className='srr';
   const b=document.createElement('span');b.className='badge '+bc(item.status);b.textContent=SL[item.status]||item.status;b.title='Klik om te wijzigen';
   b.onclick=()=>{const n=SC[(SC.indexOf(item.status)+1)%SC.length];update(ref(db,dept+'/safety/'+key),{status:n});};
-  r.appendChild(b);r.appendChild(db2(dept+'/safety/'+key));row.appendChild(l);row.appendChild(r);return row;
+  r.appendChild(b);r.appendChild(db2(dept+'/safety/'+key));row.appendChild(l);row.appendChild(r);
+  addPhotoToRow(row,'safety',key,item.photo);addReplySection(row,'safety',key,item.replies,false);return row;
 }
 function rMachine(key,item){
   const row=document.createElement('div');row.className='sr';row.id='i-'+key;
@@ -569,7 +594,8 @@ function rMachine(key,item){
   const r=document.createElement('div');r.className='srr';
   const b=document.createElement('span');b.className='badge '+bc(item.status);b.textContent=ML[item.status]||item.status;b.title='Klik om te wijzigen';
   b.onclick=()=>{const n=MC[(MC.indexOf(item.status)+1)%MC.length];update(ref(db,dept+'/machines/'+key),{status:n});};
-  r.appendChild(b);r.appendChild(db2(dept+'/machines/'+key));row.appendChild(l);row.appendChild(r);return row;
+  r.appendChild(b);r.appendChild(db2(dept+'/machines/'+key));row.appendChild(l);row.appendChild(r);
+  addPhotoToRow(row,'machines',key,item.photo);addReplySection(row,'machines',key,item.replies,false);return row;
 }
 function rPerson(key,item){
   const row=document.createElement('div');row.className='pr';row.id='i-'+key;
@@ -578,14 +604,15 @@ function rPerson(key,item){
   const r=document.createElement('div');r.className='srr';
   const b=document.createElement('span');b.className='badge '+bc(item.status);b.textContent=PL[item.status]||item.status;b.title='Klik om te wijzigen';
   b.onclick=()=>{const n=PC[(PC.indexOf(item.status)+1)%PC.length];update(ref(db,dept+'/people/'+key),{status:n});};
-  r.appendChild(b);r.appendChild(db2(dept+'/people/'+key));row.appendChild(a);row.appendChild(info);row.appendChild(r);return row;
+  r.appendChild(b);r.appendChild(db2(dept+'/people/'+key));row.appendChild(a);row.appendChild(info);row.appendChild(r);
+  addPhotoToRow(row,'people',key,item.photo);addReplySection(row,'people',key,item.replies,false);return row;
 }
 const DC={planning:{cls:'n-planning',chip:'cp',label:'Planning'},quality:{cls:'n-quality',chip:'cq',label:'Kwaliteit'},warehouse:{cls:'',chip:'cw',label:'Magazijn'},depthead:{cls:'n-depthead',chip:'cdh',label:'Afdelingshoofd'},plantmanager:{cls:'n-plantmgr',chip:'cpm',label:'Plant Manager'},general:{cls:'',chip:'cg',label:'Overige'}};
 function rDept(key,item){
   const c=DC[item.dept]||DC.general;
   const el=document.createElement('div');el.className='note '+c.cls;el.id='i-'+key;
   el.innerHTML='<div class="nm"><span class="chip '+c.chip+'">'+c.label+'</span><span>'+(item.time||'')+'</span></div><div class="nt" style="padding-right:24px;">'+(item.text||'')+'</div>';
-  el.appendChild(db2(dept+'/dept/'+key));
+  el.appendChild(db2(dept+'/dept/'+key));addReplySection(el,'dept',key,item.replies,false);
   // Photo button
   const pb=document.createElement('button');pb.className='photo-btn';pb.textContent='📷';pb.style.marginTop='6px';
   pb.onclick=function(){openPhotoModal('dept',key);};el.appendChild(pb);
@@ -599,12 +626,12 @@ function rEsc(key,item){
   const row=document.createElement('div');row.className='er';row.id='i-'+key;
   row.innerHTML='<div class="ei '+c.cls+'">'+c.ico+'</div><div style="flex:1"><div class="et">'+(item.label||'')+'</div><div class="ed">'+(item.detail||'')+'</div><div class="eto">'+tl+'</div></div>';
   row.appendChild(db2(dept+'/escalations/'+key));
-  addPhotoToRow(row,'escalations',key,item.photo);return row;
+  addPhotoToRow(row,'escalations',key,item.photo);addReplySection(row,'escalations',key,item.replies,false);return row;
 }
 function rGen(key,item){
   const el=document.createElement('div');el.className='note';el.id='i-'+key;
   el.innerHTML='<div class="nm"><strong style="color:var(--ipb-navy)">'+(item.cat||'')+'</strong><span>'+(item.time||'')+'</span></div><div class="nt" style="padding-right:24px;">'+(item.text||'')+'</div>';
-  el.appendChild(db2(dept+'/general/'+key));
+  el.appendChild(db2(dept+'/general/'+key));addReplySection(el,'general',key,item.replies,false);
   const pb=document.createElement('button');pb.className='photo-btn';pb.textContent='📷';pb.style.marginTop='6px';
   pb.onclick=function(){openPhotoModal('general',key);};el.appendChild(pb);
   if(item.photo&&item.photo.data){const wrap=document.createElement('div');wrap.className='item-photo';const img=document.createElement('img');img.src=item.photo.data;img.onclick=function(){openLightbox(item.photo.data);};const d2=document.createElement('button');d2.className='item-photo-del';d2.innerHTML='🗑';d2.onclick=function(){deleteItemPhoto('general',key);};wrap.appendChild(img);wrap.appendChild(d2);el.appendChild(wrap);}
@@ -672,7 +699,7 @@ function rIncident(key,item){
   });
   sel.onchange=()=>update(ref(db,'incidents/'+key),{status:sel.value});
   card.querySelector('.if').insertBefore(sel,card.querySelector('.if').lastElementChild);
-  card.appendChild(db2('incidents/'+key));
+  card.appendChild(db2('incidents/'+key));addReplySection(card,'incidents',key,item.replies,true);
   // Photo button
   const pb=document.createElement('button');pb.className='photo-btn';pb.style.cssText='margin:8px 14px 10px;display:block;';pb.textContent='📷 Foto toevoegen';
   pb.onclick=function(){openPhotoModal('incidents',key);};card.appendChild(pb);
@@ -888,6 +915,61 @@ function rebindLines() {
 }
 
 rebindLines();
+
+// ===== REPLIES =====
+let currentReplyTarget = null;
+
+window.openReplyModal = function(collection, key, isGlobal) {
+  currentReplyTarget = {collection:collection, key:key, isGlobal:isGlobal||false};
+  document.getElementById('reply-modal-bg').style.display = 'flex';
+  document.getElementById('reply-name').value = '';
+  document.getElementById('reply-text').value = '';
+  setTimeout(function(){ document.getElementById('reply-name').focus(); }, 100);
+};
+window.closeReplyModal = function() {
+  document.getElementById('reply-modal-bg').style.display = 'none';
+  currentReplyTarget = null;
+};
+window.saveReply = function() {
+  if (!currentReplyTarget) return;
+  const name = document.getElementById('reply-name').value.trim();
+  const text = document.getElementById('reply-text').value.trim();
+  if (!name) { alert('Vul uw naam in.'); return; }
+  if (!text) { alert('Typ een reactie.'); return; }
+  const btn = document.getElementById('reply-save-btn');
+  btn.disabled = true;
+  const path = currentReplyTarget.isGlobal
+    ? currentReplyTarget.collection + '/' + currentReplyTarget.key + '/replies'
+    : dept + '/' + currentReplyTarget.collection + '/' + currentReplyTarget.key + '/replies';
+  push(ref(db, path), {name:name, text:text, time:ts()}).then(function() {
+    closeReplyModal();
+    showToast('Reactie toegevoegd ✓');
+    btn.disabled = false;
+    btn.textContent = '💬 Versturen';
+  });
+};
+
+function addReplySection(el, collection, key, replies, isGlobal) {
+  var rBtn = document.createElement('button');
+  rBtn.className = 'reply-btn';
+  rBtn.textContent = '💬 Reageer';
+  rBtn.onclick = function(e) { e.stopPropagation(); openReplyModal(collection, key, isGlobal||false); };
+  el.appendChild(rBtn);
+  if (replies && Object.keys(replies).length > 0) {
+    var sec = document.createElement('div'); sec.className = 'reply-section';
+    Object.entries(replies).sort(function(a,b){return a[0].localeCompare(b[0]);}).forEach(function(entry) {
+      var rKey = entry[0], r = entry[1];
+      var item = document.createElement('div'); item.className = 'reply-item';
+      item.innerHTML = '<div class="reply-meta"><strong>' + (r.name||'—') + '</strong><span>' + (r.time||'') + '</span></div><div class="reply-text">' + (r.text||'') + '</div>';
+      var delR = document.createElement('button'); delR.className = 'reply-del'; delR.innerHTML = '&#128465;'; delR.title = 'Verwijderen';
+      var rPath = (isGlobal ? collection : dept+'/'+collection) + '/' + key + '/replies/' + rKey;
+      delR.onclick = function(e) { e.stopPropagation(); remove(ref(db, rPath)); };
+      item.appendChild(delR);
+      sec.appendChild(item);
+    });
+    el.appendChild(sec);
+  }
+}
 
 // ===== INLINE PHOTOS =====
 let currentPhotoTarget = null; // {collection, key} where photo will be saved
