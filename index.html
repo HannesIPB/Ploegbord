@@ -601,7 +601,7 @@ function rMachine(key,item){
 function rPerson(key,item){
   const row=document.createElement('div');row.className='pr';row.id='i-'+key;
   const a=document.createElement('div');a.className='av '+gav(item.name);a.textContent=ini(item.name);
-  const info=document.createElement('div');info.style.flex='1';info.innerHTML='<div class="pn">'+item.name+'</div><div class="pr2">'+(item.role||'')+'</div>';
+  const info=document.createElement('div');info.style.flex='1';info.innerHTML='<div class="pn">'+item.name+'</div><div class="pr2">'+(item.role||'')+(item.by?' · <span style="color:var(--ipb-text-light);font-size:10px;">'+item.by+'</span>':'')+'</div>';
   const r=document.createElement('div');r.className='srr';
   const b=document.createElement('span');b.className='badge '+bc(item.status);b.textContent=PL[item.status]||item.status;b.title='Klik om te wijzigen';
   b.onclick=()=>{const n=PC[(PC.indexOf(item.status)+1)%PC.length];update(ref(db,dept+'/people/'+key),{status:n});};
@@ -625,13 +625,13 @@ function rEsc(key,item){
   const c=EC[item.prio]||EC.info;
   const tl=item.to==='colleague'?'→ Collega ploegchef':'→ Afdelingshoofd / Directie';
   const row=document.createElement('div');row.className='er';row.id='i-'+key;
-  row.innerHTML='<div class="ei '+c.cls+'">'+c.ico+'</div><div style="flex:1"><div class="et">'+(item.label||'')+'</div><div class="ed">'+(item.detail||'')+'</div><div class="eto">'+tl+'</div></div>';
+  row.innerHTML='<div class="ei '+c.cls+'">'+c.ico+'</div><div style="flex:1"><div class="et">'+(item.label||'')+'</div><div class="ed">'+(item.detail||'')+'</div><div class="eto">'+tl+(item.by?' · <span style="font-style:italic;color:var(--ipb-text-light);">'+item.by+'</span>':'')+'</div></div>';
   row.appendChild(db2(dept+'/escalations/'+key));
   addPhotoToRow(row,'escalations',key,item.photo);addReplySection(row,'escalations',key,item.replies,false);return row;
 }
 function rGen(key,item){
   const el=document.createElement('div');el.className='note';el.id='i-'+key;
-  el.innerHTML='<div class="nm"><strong style="color:var(--ipb-navy)">'+(item.cat||'')+'</strong><span>'+(item.time||'')+'</span></div><div class="nt" style="padding-right:24px;">'+(item.text||'')+'</div>';
+  el.innerHTML='<div class="nm"><strong style="color:var(--ipb-navy)">'+(item.cat||'')+'</strong><span style="display:flex;gap:8px;align-items:center;">'+(item.by?'<span style="font-size:10px;color:var(--ipb-text-light);font-style:italic;">'+item.by+'</span>':'')+'<span>'+(item.time||'')+'</span></span></div><div class="nt" style="padding-right:24px;">'+(item.text||'')+'</div>';
   el.appendChild(db2(dept+'/general/'+key));addReplySection(el,'general',key,item.replies,false);
   const pb=document.createElement('button');pb.className='photo-btn';pb.textContent='📷';pb.style.marginTop='6px';
   pb.onclick=function(){openPhotoModal('general',key);};el.appendChild(pb);
@@ -828,12 +828,12 @@ window.toggleSnap=function(h){h.classList.toggle('open');h.nextElementSibling.cl
 // MODALS
 let cType='';
 const MC2={
-  safety:{title:'Veiligheidspunt toevoegen',html:'<label class="fl">Omschrijving</label><input class="fi" id="f0" placeholder="bv. LOTO lijn 5"><label class="fl">Toelichting</label><input class="fi" id="f1" placeholder="bv. Onderhoud bezig"><label class="fl">Status</label><select class="fi" id="f2"><option value="ok">✔ OK</option><option value="warn">⚠ Aandacht</option><option value="danger">✖ Kritisch</option></select>'},
-  machine:{title:'Machinestatus toevoegen',html:'<label class="fl">Machine / Lijn</label><input class="fi" id="f0" placeholder="bv. Lijn 5"><label class="fl">Toelichting</label><input class="fi" id="f1" placeholder="bv. Normaal bedrijf"><label class="fl">Status</label><select class="fi" id="f2"><option value="ok">Actief</option><option value="warn">Onderhoud</option><option value="danger">Panne</option><option value="off">Uit</option></select>'},
-  people:{title:'Persoon toevoegen',html:'<label class="fl">Naam</label><input class="fi" id="f0" placeholder="Voor- en achternaam"><label class="fl">Functie / Rol</label><input class="fi" id="f1" placeholder="bv. Operator Lijn 2"><label class="fl">Status</label><select class="fi" id="f2"><option value="ok">Aanwezig</option><option value="warn">Verlaat vroeg</option><option value="danger">Afwezig</option></select>'},
-  dept:{title:'Bericht van afdeling',html:'<label class="fl">Afdeling</label><select class="fi" id="f0"><option value="planning">Planning</option><option value="quality">Kwaliteit</option><option value="warehouse">Magazijn</option><option value="depthead">Afdelingshoofd</option><option value="plantmanager">Plant Manager</option><option value="general">Overige</option></select><label class="fl">Bericht</label><textarea class="fi" id="f1" placeholder="Typ uw bericht..."></textarea>'},
-  escalation:{title:'Escalatie naar afdelingshoofd of directie',html:'<label class="fl">Prioriteit</label><select class="fi" id="f0"><option value="info">ℹ Info</option><option value="warn">⚠ Aandacht</option><option value="urgent">! Urgent</option></select><label class="fl">Titel</label><input class="fi" id="f1" placeholder="Korte omschrijving"><label class="fl">Detail</label><textarea class="fi" id="f2" placeholder="Meer uitleg..."></textarea><label class="fl">Gericht aan</label><select class="fi" id="f3"><option value="colleague">Collega ploegchef</option><option value="management">Afdelingshoofd / Directie</option></select>'},
-  general:{title:'Algemene opmerking',html:'<label class="fl">Categorie</label><input class="fi" id="f0" placeholder="bv. Overdracht nota"><label class="fl">Opmerking</label><textarea class="fi" id="f1" placeholder="Typ uw opmerking..."></textarea>'},
+  safety:{title:'Veiligheidspunt toevoegen',html:'<label class="fl">Gemeld door</label><input class="fi" id="f-by" id="f-by" placeholder="Uw naam"><label class="fl">Omschrijving</label><input class="fi" id="f0" placeholder="bv. LOTO lijn 5"><label class="fl">Toelichting</label><input class="fi" id="f1" placeholder="bv. Onderhoud bezig"><label class="fl">Status</label><select class="fi" id="f2"><option value="ok">✔ OK</option><option value="warn">⚠ Aandacht</option><option value="danger">✖ Kritisch</option></select>'},
+  machine:{title:'Machinestatus toevoegen',html:'<label class="fl">Gemeld door</label><input class="fi" id="f-by" placeholder="Uw naam"><label class="fl">Machine / Lijn</label><input class="fi" id="f0" placeholder="bv. Lijn 5"><label class="fl">Toelichting</label><input class="fi" id="f1" placeholder="bv. Normaal bedrijf"><label class="fl">Status</label><select class="fi" id="f2"><option value="ok">Actief</option><option value="warn">Onderhoud</option><option value="danger">Panne</option><option value="off">Uit</option></select>'},
+  people:{title:'Persoon toevoegen',html:'<label class="fl">Gemeld door</label><input class="fi" id="f-by" placeholder="Uw naam"><label class="fl">Naam</label><input class="fi" id="f0" placeholder="Voor- en achternaam"><label class="fl">Functie / Rol</label><input class="fi" id="f1" placeholder="bv. Operator Lijn 2"><label class="fl">Status</label><select class="fi" id="f2"><option value="ok">Aanwezig</option><option value="warn">Verlaat vroeg</option><option value="danger">Afwezig</option></select>'},
+  dept:{title:'Bericht van afdeling',html:'<label class="fl">Gemeld door</label><input class="fi" id="f-by" placeholder="Uw naam"><label class="fl">Afdeling</label><select class="fi" id="f0"><option value="planning">Planning</option><option value="quality">Kwaliteit</option><option value="warehouse">Magazijn</option><option value="depthead">Afdelingshoofd</option><option value="plantmanager">Plant Manager</option><option value="general">Overige</option></select><label class="fl">Bericht</label><textarea class="fi" id="f1" placeholder="Typ uw bericht..."></textarea>'},
+  escalation:{title:'Escalatie naar afdelingshoofd of directie',html:'<label class="fl">Gemeld door</label><input class="fi" id="f-by" placeholder="Uw naam"><label class="fl">Prioriteit</label><select class="fi" id="f0"><option value="info">ℹ Info</option><option value="warn">⚠ Aandacht</option><option value="urgent">! Urgent</option></select><label class="fl">Titel</label><input class="fi" id="f1" placeholder="Korte omschrijving"><label class="fl">Detail</label><textarea class="fi" id="f2" placeholder="Meer uitleg..."></textarea><label class="fl">Gericht aan</label><select class="fi" id="f3"><option value="colleague">Collega ploegchef</option><option value="management">Afdelingshoofd / Directie</option></select>'},
+  general:{title:'Algemene opmerking',html:'<label class="fl">Gemeld door</label><input class="fi" id="f-by" placeholder="Uw naam"><label class="fl">Categorie</label><input class="fi" id="f0" placeholder="bv. Overdracht nota"><label class="fl">Opmerking</label><textarea class="fi" id="f1" placeholder="Typ uw opmerking..."></textarea>'},
 
   incident:{title:'Schadegeval / Arbeidsongeval',html:'<label class="fl">Type</label><select class="fi" id="f0"><option value="personal">Lichamelijk letsel</option><option value="material">Materiële schade</option><option value="environmental">Milieu-incident</option><option value="other">Andere</option></select><label class="fl">Ernst</label><select class="fi" id="f1"><option value="low">Licht</option><option value="medium">Matig</option><option value="high">Ernstig</option></select><label class="fl">Datum & tijdstip incident</label><input class="fi" type="datetime-local" id="f2"><label class="fl">Locatie</label><input class="fi" id="f3" placeholder="bv. Lijn 3, magazijn"><label class="fl">Betrokken persoon/personen</label><input class="fi" id="f4" placeholder="Naam(en)"><label class="fl">Omschrijving</label><textarea class="fi" id="f5" placeholder="Wat is er gebeurd?"></textarea><label class="fl">Onmiddellijke acties ondernomen</label><textarea class="fi" id="f6" placeholder="Welke maatregelen werden direct genomen?"></textarea><label class="fl">Status opvolging</label><select class="fi" id="f7"><option value="open">Open</option><option value="followup">In opvolging</option><option value="closed">Afgesloten</option></select>'}
 };
@@ -843,18 +843,25 @@ window.openModal=function(type){
   document.getElementById('modal-body').innerHTML=c.html;
   const sb=document.getElementById('msb');sb.textContent='Opslaan';sb.onclick=saveItem;
   document.getElementById('modal-bg').classList.add('open');
+  // Auto-fill name field
+  const byField=document.getElementById('f-by');
+  if(byField){
+    const autoName=state.shift&&state.shift.chief?state.shift.chief:(document.getElementById('op-input')?document.getElementById('op-input').value:'');
+    byField.value=autoName;
+  }
   document.getElementById('f0').focus();
 };
 window.closeModal=function(){document.getElementById('modal-bg').classList.remove('open');};
 window.saveItem=function(){
   const g=id=>(document.getElementById(id)||{}).value||'';
-  const t=tt(),chief=state.shift&&state.shift.chief?state.shift.chief:(document.getElementById('op-input')?document.getElementById('op-input').value:'');
-  if(cType==='safety')     push(ref(db,dp('safety')),    {label:g('f0'),sub:g('f1'),status:g('f2')});
-  if(cType==='machine')    push(ref(db,dp('machines')),  {label:g('f0'),sub:g('f1'),status:g('f2')});
-  if(cType==='people')     push(ref(db,dp('people')),    {name:g('f0'),role:g('f1'),status:g('f2')});
-  if(cType==='dept')       push(ref(db,dp('dept')),      {dept:g('f0'),text:g('f1'),time:t});
-  if(cType==='escalation') push(ref(db,dp('escalations')),{prio:g('f0'),label:g('f1'),detail:g('f2'),to:g('f3'),time:t});
-  if(cType==='general')    push(ref(db,dp('general')),   {cat:g('f0'),text:g('f1'),time:t});
+  const t=tt();
+  const by=(document.getElementById('f-by')||{}).value||'';
+  if(cType==='safety')     push(ref(db,dp('safety')),    {label:g('f0'),sub:g('f1'),status:g('f2'),by:by});
+  if(cType==='machine')    push(ref(db,dp('machines')),  {label:g('f0'),sub:g('f1'),status:g('f2'),by:by});
+  if(cType==='people')     push(ref(db,dp('people')),    {name:g('f0'),role:g('f1'),status:g('f2'),by:by});
+  if(cType==='dept')       push(ref(db,dp('dept')),      {dept:g('f0'),text:g('f1'),time:t,by:by});
+  if(cType==='escalation') push(ref(db,dp('escalations')),{prio:g('f0'),label:g('f1'),detail:g('f2'),to:g('f3'),time:t,by:by});
+  if(cType==='general')    push(ref(db,dp('general')),   {cat:g('f0'),text:g('f1'),time:t,by:by});
 
   if(cType==='incident')   push(ref(db,'incidents'),     {type:g('f0'),severity:g('f1'),incidentTime:g('f2'),location:g('f3'),persons:g('f4'),description:g('f5'),actions:g('f6'),status:g('f7'),reportedAt:ts(),reportedBy:chief});
   closeModal();showToast('Opgeslagen ✓');
