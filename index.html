@@ -438,8 +438,8 @@ textarea.fi{height:80px;resize:vertical;}
         <div>
           <label class="fl">Opgemeten Lengte L.</label>
           <div style="display:flex;gap:6px;align-items:center;">
-            <input class="fi" id="cf-lengte-l" placeholder="mm" style="flex:1;">
-            <select class="fi" id="cf-lengte-l-ok" style="width:90px;padding:8px 6px;">
+            <input id="cf-lengte-l" placeholder="mm" style="padding:8px 12px;border:1.5px solid #dde3f0;border-radius:6px;font-size:13px;color:#1a2e5a;background:#fff;flex:1;min-width:80px;">
+            <select class="fi" id="cf-lengte-l-ok" onchange="toggleRemark('cf-lengte-l')" style="width:90px;padding:8px 6px;">
               <option value="Ja">✓ Ja</option><option value="Neen">✗ Neen</option>
             </select>
           </div>
@@ -447,8 +447,8 @@ textarea.fi{height:80px;resize:vertical;}
         <div>
           <label class="fl">Opgemeten Lengte R.</label>
           <div style="display:flex;gap:6px;align-items:center;">
-            <input class="fi" id="cf-lengte-r" placeholder="mm" style="flex:1;">
-            <select class="fi" id="cf-lengte-r-ok" style="width:90px;padding:8px 6px;">
+            <input id="cf-lengte-r" placeholder="mm" style="padding:8px 12px;border:1.5px solid #dde3f0;border-radius:6px;font-size:13px;color:#1a2e5a;background:#fff;flex:1;min-width:80px;">
+            <select class="fi" id="cf-lengte-r-ok" onchange="toggleRemark('cf-lengte-r')" style="width:90px;padding:8px 6px;">
               <option value="Ja">✓ Ja</option><option value="Neen">✗ Neen</option>
             </select>
           </div>
@@ -456,8 +456,8 @@ textarea.fi{height:80px;resize:vertical;}
         <div>
           <label class="fl">Opgemeten Breedte.</label>
           <div style="display:flex;gap:6px;align-items:center;">
-            <input class="fi" id="cf-breedte" placeholder="mm" style="flex:1;">
-            <select class="fi" id="cf-breedte-ok" style="width:90px;padding:8px 6px;">
+            <input id="cf-breedte" placeholder="mm" style="padding:8px 12px;border:1.5px solid #dde3f0;border-radius:6px;font-size:13px;color:#1a2e5a;background:#fff;flex:1;min-width:80px;">
+            <select class="fi" id="cf-breedte-ok" onchange="toggleRemark('cf-breedte')" style="width:90px;padding:8px 6px;">
               <option value="Ja">✓ Ja</option><option value="Neen">✗ Neen</option>
             </select>
           </div>
@@ -465,8 +465,8 @@ textarea.fi{height:80px;resize:vertical;}
         <div>
           <label class="fl">Opgemeten Dikte.</label>
           <div style="display:flex;gap:6px;align-items:center;">
-            <input class="fi" id="cf-dikte" placeholder="mm" style="flex:1;">
-            <select class="fi" id="cf-dikte-ok" style="width:90px;padding:8px 6px;">
+            <input id="cf-dikte" placeholder="mm" style="padding:8px 12px;border:1.5px solid #dde3f0;border-radius:6px;font-size:13px;color:#1a2e5a;background:#fff;flex:1;min-width:80px;">
+            <select class="fi" id="cf-dikte-ok" onchange="toggleRemark('cf-dikte')" style="width:90px;padding:8px 6px;">
               <option value="Ja">✓ Ja</option><option value="Neen">✗ Neen</option>
             </select>
           </div>
@@ -474,8 +474,8 @@ textarea.fi{height:80px;resize:vertical;}
         <div>
           <label class="fl">Gewogen Gewicht.</label>
           <div style="display:flex;gap:6px;align-items:center;">
-            <input class="fi" id="cf-gewicht" placeholder="kg" style="flex:1;">
-            <select class="fi" id="cf-gewicht-ok" style="width:90px;padding:8px 6px;">
+            <input id="cf-gewicht" placeholder="kg" style="padding:8px 12px;border:1.5px solid #dde3f0;border-radius:6px;font-size:13px;color:#1a2e5a;background:#fff;flex:1;min-width:80px;">
+            <select class="fi" id="cf-gewicht-ok" onchange="toggleRemark('cf-gewicht')" style="width:90px;padding:8px 6px;">
               <option value="Ja">✓ Ja</option><option value="Neen">✗ Neen</option>
             </select>
           </div>
@@ -487,11 +487,13 @@ textarea.fi{height:80px;resize:vertical;}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <div>
           <label class="fl">Kleur stemt overeen</label>
-          <select class="fi" id="cf-kleur-ok"><option value="Ja">✓ Ja</option><option value="Neen">✗ Neen</option></select>
+          <select class="fi" id="cf-kleur-ok" onchange="toggleRemark('cf-kleur')"><option value="Ja">✓ Ja</option><option value="Neen">✗ Neen</option></select>
+          <input class="fi" id="cf-kleur-opmerking" placeholder="Opmerking..." style="margin-top:5px;display:none;">
         </div>
         <div>
           <label class="fl">Juiste additieven gedosseerd</label>
-          <select class="fi" id="cf-additieven-ok"><option value="Ja">✓ Ja</option><option value="Neen">✗ Neen</option></select>
+          <select class="fi" id="cf-additieven-ok" onchange="toggleRemark('cf-additieven')"><option value="Ja">✓ Ja</option><option value="Neen">✗ Neen</option></select>
+          <input class="fi" id="cf-additieven-opmerking" placeholder="Opmerking..." style="margin-top:5px;display:none;">
         </div>
       </div>
       <div style="margin-top:8px;">
@@ -512,7 +514,33 @@ textarea.fi{height:80px;resize:vertical;}
       </div>
       <div style="margin-top:8px;">
         <label class="fl">Outputblad aanwezig & ingevuld</label>
-        <select class="fi" id="cf-outputblad-ok"><option value="Ja">✓ Ja</option><option value="Neen">✗ Neen</option></select>
+        <select class="fi" id="cf-outputblad-ok" onchange="toggleRemark('cf-outputblad')"><option value="Ja">✓ Ja</option><option value="Neen">✗ Neen</option></select>
+        <input class="fi" id="cf-outputblad-opmerking" placeholder="Opmerking..." style="margin-top:5px;display:none;">
+      </div>
+
+      <!-- Extra checks -->
+      <div style="font-size:12px;font-weight:700;color:var(--ipb-navy);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 10px;padding-bottom:5px;border-bottom:2px solid var(--ipb-green);">Extra controles</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div>
+          <label class="fl">Corona OK</label>
+          <select class="fi" id="cf-corona-ok" onchange="toggleRemark('cf-corona')"><option value="NVT" selected>NVT</option><option value="Ja">✓ Ja</option><option value="Neen">✗ Neen</option></select>
+          <input class="fi" id="cf-corona-opmerking" placeholder="Opmerking..." style="margin-top:5px;display:none;">
+        </div>
+        <div>
+          <label class="fl">Bedrukking OK</label>
+          <select class="fi" id="cf-bedrukking-ok" onchange="toggleRemark('cf-bedrukking')"><option value="NVT" selected>NVT</option><option value="Ja">✓ Ja</option><option value="Neen">✗ Neen</option></select>
+          <input class="fi" id="cf-bedrukking-opmerking" placeholder="Opmerking..." style="margin-top:5px;display:none;">
+        </div>
+        <div>
+          <label class="fl">Perforatie OK</label>
+          <select class="fi" id="cf-perforatie-ok" onchange="toggleRemark('cf-perforatie')"><option value="NVT" selected>NVT</option><option value="Ja">✓ Ja</option><option value="Neen">✗ Neen</option></select>
+          <input class="fi" id="cf-perforatie-opmerking" placeholder="Opmerking..." style="margin-top:5px;display:none;">
+        </div>
+        <div>
+          <label class="fl">Rillijnen OK</label>
+          <select class="fi" id="cf-rillijnen-ok" onchange="toggleRemark('cf-rillijnen')"><option value="NVT" selected>NVT</option><option value="Ja">✓ Ja</option><option value="Neen">✗ Neen</option></select>
+          <input class="fi" id="cf-rillijnen-opmerking" placeholder="Opmerking..." style="margin-top:5px;display:none;">
+        </div>
       </div>
     </div>
     <div class="mf">
@@ -1487,7 +1515,7 @@ function renderControle() {
       var card = document.createElement('div'); card.className='ctrl-card';
 
       // Determine if any NOK
-      var hasNok = [v.lengte_l_ok,v.lengte_r_ok,v.breedte_ok,v.dikte_ok,v.gewicht_ok,v.kleur_ok,v.additieven_ok,v.zonale_ok,v.lipmeting_ok,v.outputblad_ok]
+      var hasNok = [v.lengte_l_ok,v.lengte_r_ok,v.breedte_ok,v.dikte_ok,v.gewicht_ok,v.kleur_ok,v.additieven_ok,v.zonale_ok,v.lipmeting_ok,v.outputblad_ok,v.corona_ok,v.bedrukking_ok,v.perforatie_ok,v.rillijnen_ok]
         .some(function(x){ return x && x.toLowerCase().startsWith('n'); });
 
       var head = document.createElement('div'); head.className='ctrl-head';
@@ -1552,10 +1580,21 @@ function renderControle() {
       grid.appendChild(fld('Gewicht', v.gewicht));
       grid.appendChild(fld('Gewicht OK', v.gewicht_ok, true));
       grid.appendChild(fld('Kleur OK', v.kleur_ok, true));
+      if(v.kleur_opmerking) grid.appendChild(fld('Opmerking kleur', v.kleur_opmerking));
       grid.appendChild(fld('Additieven OK', v.additieven_ok, true));
+      if(v.additieven_opmerking) grid.appendChild(fld('Opmerking additieven', v.additieven_opmerking));
       grid.appendChild(fld('Zonale OK', v.zonale_ok, true));
       grid.appendChild(fld('Lipmeting OK', v.lipmeting_ok, true));
       grid.appendChild(fld('Outputblad OK', v.outputblad_ok, true));
+      if(v.outputblad_opmerking) grid.appendChild(fld('Opmerking outputblad', v.outputblad_opmerking));
+      if(v.corona_ok) grid.appendChild(fld('Corona OK', v.corona_ok, true));
+      if(v.corona_opmerking) grid.appendChild(fld('Opmerking corona', v.corona_opmerking));
+      if(v.bedrukking_ok) grid.appendChild(fld('Bedrukking OK', v.bedrukking_ok, true));
+      if(v.bedrukking_opmerking) grid.appendChild(fld('Opmerking bedrukking', v.bedrukking_opmerking));
+      if(v.perforatie_ok) grid.appendChild(fld('Perforatie OK', v.perforatie_ok, true));
+      if(v.perforatie_opmerking) grid.appendChild(fld('Opmerking perforatie', v.perforatie_opmerking));
+      if(v.rillijnen_ok) grid.appendChild(fld('Rillijnen OK', v.rillijnen_ok, true));
+      if(v.rillijnen_opmerking) grid.appendChild(fld('Opmerking rillijnen', v.rillijnen_opmerking));
       body.appendChild(grid);
 
       if (v.additieven_afwijking) {
@@ -1585,18 +1624,52 @@ function renderControle() {
   });
 }
 
+window.toggleRemark = function(prefix) {
+  var sel = document.getElementById(prefix+'-ok');
+  if (!sel) return;
+  var isNok = sel.value && sel.value.toLowerCase().startsWith('n');
+  // Try existing remark/reden input
+  var inp = document.getElementById(prefix+'-opmerking') || document.getElementById(prefix+'-reden');
+  if (!inp) {
+    // Dynamically create remark input after the select's parent
+    inp = document.createElement('input');
+    inp.className = 'fi';
+    inp.id = prefix+'-opmerking';
+    inp.placeholder = 'Opmerking bij afwijking...';
+    inp.style.marginTop = '5px';
+    inp.style.display = 'none';
+    // Insert after the closest parent div of the select
+    var parent = sel.closest('div');
+    if (parent) parent.insertAdjacentElement('afterend', inp);
+  }
+  inp.style.display = isNok ? 'block' : 'none';
+  if (!isNok) inp.value = '';
+};
+
 window.openControleForm = function() {
   var d=new Date(), p2=function(n){return String(n).padStart(2,'0');};
   document.getElementById('cf-datum').value = d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());
   var chief = state.shift&&state.shift.chief ? state.shift.chief : '';
   document.getElementById('cf-teamleider').value = chief;
+  // Reset regular inputs (clear value, keep visible)
   ['cf-extrudeur','cf-ordernr','cf-additieven-afwijking','cf-zonale-reden','cf-lipmeting-reden',
    'cf-lengte-l','cf-lengte-r','cf-breedte','cf-dikte','cf-gewicht'].forEach(function(id){
-    var el=document.getElementById(id); if(el) el.value='';
+    var el=document.getElementById(id);
+    if(el){el.value='';el.style.display='';}
+  });
+  // Reset opmerking inputs (clear value AND hide)
+  ['cf-lengte-l-opmerking','cf-lengte-r-opmerking','cf-breedte-opmerking','cf-dikte-opmerking','cf-gewicht-opmerking',
+   'cf-kleur-opmerking','cf-additieven-opmerking','cf-outputblad-opmerking',
+   'cf-corona-opmerking','cf-bedrukking-opmerking','cf-perforatie-opmerking','cf-rillijnen-opmerking'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el){el.value='';el.style.display='none';}
   });
   ['cf-lengte-l-ok','cf-lengte-r-ok','cf-breedte-ok','cf-dikte-ok','cf-gewicht-ok',
    'cf-kleur-ok','cf-additieven-ok','cf-zonale-ok','cf-lipmeting-ok','cf-outputblad-ok'].forEach(function(id){
     var el=document.getElementById(id); if(el) el.value='Ja';
+  });
+  ['cf-corona-ok','cf-bedrukking-ok','cf-perforatie-ok','cf-rillijnen-ok'].forEach(function(id){
+    var el=document.getElementById(id); if(el) el.value='NVT';
   });
   document.getElementById('controle-modal').style.display='flex';
 };
@@ -1615,16 +1688,21 @@ window.saveControleForm = function() {
   var datum = dp.length===3 ? dp[2]+'/'+dp[1]+'/'+dp[0] : datumRaw;
   push(ref(db,'controles'), {
     datum:datum, teamleider:g('cf-teamleider'), extrudeur:g('cf-extrudeur'), ordernr:g('cf-ordernr'),
-    lengte_l:g('cf-lengte-l'), lengte_l_ok:g('cf-lengte-l-ok'),
-    lengte_r:g('cf-lengte-r'), lengte_r_ok:g('cf-lengte-r-ok'),
-    breedte:g('cf-breedte'), breedte_ok:g('cf-breedte-ok'),
-    dikte:g('cf-dikte'), dikte_ok:g('cf-dikte-ok'),
-    gewicht:g('cf-gewicht'), gewicht_ok:g('cf-gewicht-ok'),
-    kleur_ok:g('cf-kleur-ok'), additieven_ok:g('cf-additieven-ok'),
+    lengte_l:g('cf-lengte-l'), lengte_l_ok:g('cf-lengte-l-ok'), lengte_l_opmerking:g('cf-lengte-l-opmerking'),
+    lengte_r:g('cf-lengte-r'), lengte_r_ok:g('cf-lengte-r-ok'), lengte_r_opmerking:g('cf-lengte-r-opmerking'),
+    breedte:g('cf-breedte'), breedte_ok:g('cf-breedte-ok'), breedte_opmerking:g('cf-breedte-opmerking'),
+    dikte:g('cf-dikte'), dikte_ok:g('cf-dikte-ok'), dikte_opmerking:g('cf-dikte-opmerking'),
+    gewicht:g('cf-gewicht'), gewicht_ok:g('cf-gewicht-ok'), gewicht_opmerking:g('cf-gewicht-opmerking'),
+    kleur_ok:g('cf-kleur-ok'), kleur_opmerking:g('cf-kleur-opmerking'),
+    additieven_ok:g('cf-additieven-ok'), additieven_opmerking:g('cf-additieven-opmerking'),
     additieven_afwijking:g('cf-additieven-afwijking'),
     zonale_ok:g('cf-zonale-ok'), zonale_reden:g('cf-zonale-reden'),
     lipmeting_ok:g('cf-lipmeting-ok'), lipmeting_reden:g('cf-lipmeting-reden'),
-    outputblad_ok:g('cf-outputblad-ok'),
+    outputblad_ok:g('cf-outputblad-ok'), outputblad_opmerking:g('cf-outputblad-opmerking'),
+    corona_ok:g('cf-corona-ok'), corona_opmerking:g('cf-corona-opmerking'),
+    bedrukking_ok:g('cf-bedrukking-ok'), bedrukking_opmerking:g('cf-bedrukking-opmerking'),
+    perforatie_ok:g('cf-perforatie-ok'), perforatie_opmerking:g('cf-perforatie-opmerking'),
+    rillijnen_ok:g('cf-rillijnen-ok'), rillijnen_opmerking:g('cf-rillijnen-opmerking'),
     createdAt:ts(), createdBy:g('cf-teamleider'), bron:'manueel'
   }).then(function() {
     closeControleForm();
@@ -1645,11 +1723,11 @@ window.exportControleExcel = function() {
     return true;
   });
   filtered.sort(function(a,b){return dateToCmp(b[1].datum||'').localeCompare(dateToCmp(a[1].datum||''));});
-  var hdrs=['Datum','Teamleider','Extrudeur','Order Nr.','Lengte L','Lengte L OK','Lengte R','Lengte R OK','Breedte','Breedte OK','Dikte','Dikte OK','Gewicht','Gewicht OK','Kleur OK','Additieven OK','Afwijking Additieven','Zonale OK','Reden Zonale','Lipmeting OK','Reden Lipmeting','Outputblad OK','Aangemeld op','Aangemeld door'];
+  var hdrs=['Datum','Teamleider','Extrudeur','Order Nr.','Lengte L','Lengte L OK','Opm. L','Lengte R','Lengte R OK','Opm. R','Breedte','Breedte OK','Opm. Breedte','Dikte','Dikte OK','Opm. Dikte','Gewicht','Gewicht OK','Opm. Gewicht','Kleur OK','Opm. Kleur','Additieven OK','Opm. Additieven','Afwijking Additieven','Zonale OK','Reden Zonale','Lipmeting OK','Reden Lipmeting','Outputblad OK','Opm. Outputblad','Corona OK','Opm. Corona','Bedrukking OK','Opm. Bedrukking','Perforatie OK','Opm. Perforatie','Rillijnen OK','Opm. Rillijnen','Aangemeld op','Aangemeld door'];
   var rows=[hdrs];
   filtered.forEach(function(e){
     var v=e[1];
-    rows.push([v.datum||'',v.teamleider||'',v.extrudeur||'',v.ordernr||'',v.lengte_l||'',v.lengte_l_ok||'',v.lengte_r||'',v.lengte_r_ok||'',v.breedte||'',v.breedte_ok||'',v.dikte||'',v.dikte_ok||'',v.gewicht||'',v.gewicht_ok||'',v.kleur_ok||'',v.additieven_ok||'',v.additieven_afwijking||'',v.zonale_ok||'',v.zonale_reden||'',v.lipmeting_ok||'',v.lipmeting_reden||'',v.outputblad_ok||'',v.createdAt||'',v.createdBy||'']);
+    rows.push([v.datum||'',v.teamleider||'',v.extrudeur||'',v.ordernr||'',v.lengte_l||'',v.lengte_l_ok||'',v.lengte_l_opmerking||'',v.lengte_r||'',v.lengte_r_ok||'',v.lengte_r_opmerking||'',v.breedte||'',v.breedte_ok||'',v.breedte_opmerking||'',v.dikte||'',v.dikte_ok||'',v.dikte_opmerking||'',v.gewicht||'',v.gewicht_ok||'',v.gewicht_opmerking||'',v.kleur_ok||'',v.kleur_opmerking||'',v.additieven_ok||'',v.additieven_opmerking||'',v.additieven_afwijking||'',v.zonale_ok||'',v.zonale_reden||'',v.lipmeting_ok||'',v.lipmeting_reden||'',v.outputblad_ok||'',v.outputblad_opmerking||'',v.corona_ok||'',v.corona_opmerking||'',v.bedrukking_ok||'',v.bedrukking_opmerking||'',v.perforatie_ok||'',v.perforatie_opmerking||'',v.rillijnen_ok||'',v.rillijnen_opmerking||'',v.createdAt||'',v.createdBy||'']);
   });
   var wb=window.XLSX.utils.book_new();
   var ws=window.XLSX.utils.aoa_to_sheet(rows);
