@@ -150,7 +150,7 @@ textarea.fi{height:80px;resize:vertical;}
 .pf{text-align:center;padding:12px;font-size:11px;color:var(--ipb-text-light);border-top:1px solid var(--ipb-border);margin-top:8px;}
 .lines-card{background:var(--ipb-white);border-radius:var(--r);border:1px solid var(--ipb-border);box-shadow:var(--shadow-sm);overflow:hidden;margin-bottom:14px;}
 .lines-body{padding:10px 14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
-.line-toggle{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:var(--rs);border:1.5px solid var(--ipb-border);background:var(--ipb-offwhite);cursor:pointer;transition:all .15s;user-select:none;}
+.line-toggle{display:flex;align-items:center;gap:8px;padding:6px 14px;border-radius:var(--rs);border:1.5px solid var(--ipb-border);background:var(--ipb-offwhite);cursor:pointer;transition:all .15s;user-select:none;}
 .line-toggle.active{background:var(--ipb-green-bg);border-color:var(--ipb-green);}
 .line-toggle.inactive{background:#fef1f1;border-color:#e24b4a;}
 .line-name{font-size:13px;font-weight:700;color:var(--ipb-navy);}
@@ -158,6 +158,66 @@ textarea.fi{height:80px;resize:vertical;}
 .toggle-sw.on{background:var(--ipb-green);}
 .toggle-sw::after{content:'';position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);}
 .toggle-sw.on::after{left:19px;}
+.line-toggle:hover{transform:translateY(-1px);box-shadow:var(--shadow-md);}
+.line-name{font-size:14px;font-weight:800;color:var(--ipb-navy);}
+.line-status-lbl{font-size:11px;font-weight:600;margin-top:3px;}
+.line-operator{font-size:10px;color:var(--ipb-text-muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px;}
+.line-time{font-size:10px;color:var(--ipb-text-light);margin-top:3px;}
+.line-toggle.st-actief   {border-color:#6ab04c;background:#eef7e9;}
+.line-toggle.st-vertraagd{border-color:#f5a623;background:#fff8ec;}
+.line-toggle.st-onderhoud{border-color:#378ADD;background:#e6f1fb;}
+.line-toggle.st-panne    {border-color:#e24b4a;background:#fef1f1;animation:blink-border 1.5s infinite;}
+.line-toggle.st-stilstand{border-color:#8a9abf;background:#f0f2f7;}
+.line-toggle.st-unknown  {border-color:var(--ipb-border);background:var(--ipb-offwhite);}
+@keyframes blink-border{0%,100%{box-shadow:0 0 0 0 rgba(226,75,74,.4);}50%{box-shadow:0 0 0 4px rgba(226,75,74,.15);}}
+.op-status-card{background:#fff;border-radius:var(--r);border:1px solid var(--ipb-border);box-shadow:var(--shadow-sm);margin-bottom:14px;overflow:hidden;}
+.op-status-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;padding:10px 14px;}
+.op-line-card{padding:10px 12px;border-radius:var(--rs);border:2px solid var(--ipb-border);background:var(--ipb-offwhite);cursor:default;}
+.op-line-card.st-actief   {border-color:#6ab04c;background:#eef7e9;}
+.op-line-card.st-vertraagd{border-color:#f5a623;background:#fff8ec;}
+.op-line-card.st-onderhoud{border-color:#378ADD;background:#e6f1fb;}
+.op-line-card.st-panne    {border-color:#e24b4a;background:#fef1f1;}
+.op-line-card.st-stilstand{border-color:#8a9abf;background:#f0f2f7;}
+.op-line-name{font-size:13px;font-weight:700;color:var(--ipb-navy);}
+.op-line-status{font-size:11px;font-weight:600;margin-top:3px;}
+.op-line-sub{font-size:10px;color:var(--ipb-text-muted);margin-top:2px;}
+.op-line-time{font-size:10px;color:var(--ipb-text-light);margin-top:4px;}
+.stamp{font-size:10px;color:var(--ipb-text-light);margin-top:3px;display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
+.stamp .stamp-by{font-weight:600;color:var(--ipb-text-muted);}
+.stamp .stamp-time{color:var(--ipb-text-light);}
+.ctrl-tab-btn{padding:8px 16px;border:none;background:none;font-size:13px;font-weight:700;color:var(--ipb-text-muted);border-bottom:3px solid transparent;margin-bottom:-2px;cursor:pointer;}
+.ctrl-tab-btn.active{color:var(--ipb-navy);border-bottom-color:var(--ipb-navy);}
+.ctrl-card{background:#fff;border-radius:10px;border:1px solid var(--ipb-border);box-shadow:var(--shadow-sm);overflow:hidden;margin-bottom:8px;}
+.ctrl-head{padding:10px 14px;display:flex;align-items:center;gap:8px;cursor:pointer;border-bottom:1px solid #f0f2f7;flex-wrap:wrap;}
+.ctrl-head:hover{background:#fafbfd;}
+.ctrl-body{display:none;padding:14px;border-top:1px solid #f0f2f7;}
+.ctrl-body.open{display:block;}
+.ctrl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;}
+.ctrl-field{font-size:12px;}
+.ctrl-lbl{font-size:10px;font-weight:700;color:var(--ipb-text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;}
+.ctrl-val{color:var(--ipb-text);}
+.ctrl-ok{color:#2a6018;font-weight:600;}
+.ctrl-nok{color:#8b1a1a;font-weight:600;}
+.ctrl-badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;background:#edf3fe;color:var(--ipb-navy);}
+.qfb{padding:4px 12px;border-radius:20px;border:1.5px solid var(--ipb-border);background:var(--ipb-offwhite);color:var(--ipb-text-muted);cursor:pointer;font-size:12px;font-weight:600;transition:all .15s;}
+.qfb.active{background:var(--ipb-navy);color:#fff;border-color:var(--ipb-navy);}
+.qcard{background:#fff;border-radius:10px;border:1px solid var(--ipb-border);box-shadow:var(--shadow-sm);overflow:hidden;margin-bottom:10px;}
+.qcard-head{padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;border-bottom:1px solid #f0f2f7;}
+.qcard-head:hover{background:#fafbfd;}
+.qcard-type{font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;}
+.qcard-type.capa{background:#edf3fe;color:var(--ipb-navy);}
+.qcard-type.knaag{background:#eef7e9;color:#2a6018;}
+.qcard-title{font-size:13px;font-weight:600;color:var(--ipb-text);flex:1;}
+.qcard-stamp{font-size:11px;color:var(--ipb-text-muted);}
+.qcard-status{font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;}
+.qst-open{background:#fef1f1;color:#8b1a1a;}
+.qst-followup{background:#fff8ec;color:#7a4a00;}
+.qst-closed{background:#eef7e9;color:#2a6018;}
+.qcard-body{padding:14px;display:none;border-top:1px solid #f0f2f7;}
+.qcard-body.open{display:block;}
+.qfield{margin-bottom:8px;font-size:13px;}
+.qfield-lbl{font-size:10px;font-weight:700;color:var(--ipb-text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;}
+.qfield-val{color:var(--ipb-text);line-height:1.5;}
 .reply-section{margin-top:6px;border-top:1px solid var(--ipb-border);padding-top:6px;}
 .reply-item{padding:5px 8px;background:#f4f6fb;border-radius:6px;margin-bottom:4px;font-size:12px;border-left:2px solid var(--ipb-navy-light);position:relative;}
 .reply-item:last-child{margin-bottom:0;}
@@ -199,6 +259,8 @@ textarea.fi{height:80px;resize:vertical;}
     </select>
     <button class="nav-btn" onclick="showPage('archive',this)">🗂 Archief</button>
     <button class="nav-btn" onclick="showPage('incidents',this)">⚠️ Schadegeval / Arbeidsongeval</button>
+    <button class="nav-btn" onclick="showPage('quality',this)">🔬 Kwaliteit</button>
+    <button class="nav-btn" onclick="showPage('controle',this)">📋 Controle Ploegchef</button>
     <a href="https://maintenance-ipb.web.app" target="_blank" style="padding:5px 12px;border-radius:6px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1);color:#fff;font-size:12px;font-weight:600;text-decoration:none;display:flex;align-items:center;gap:5px;">🔧 Technische Dienst</a>
     <span style="margin-left:4px;"><span class="live-dot" id="live-dot"></span><span class="live-label" id="live-lbl">Verbinden...</span></span>
     <div class="clock" id="clock">--:--:--</div>
@@ -265,7 +327,13 @@ textarea.fi{height:80px;resize:vertical;}
 <div class="main">
 <div class="page active" id="page-board">
   <div class="lines-card">
-  <div class="ch"><div class="chl"><div class="ci" style="background:#edf3fe;">⚡</div><span class="ct">Actieve lijnen</span></div></div>
+  <div class="ch">
+    <div class="chl"><div class="ci" style="background:#edf3fe;">⚡</div><span class="ct">Actieve lijnen</span><span style="font-size:11px;color:var(--ipb-text-muted);font-weight:400;">— klik op een lijn voor de tijdslijn</span></div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="font-size:11px;color:var(--ipb-text-muted);" id="op-last-update"></span>
+      <button onclick="openLinesArchive()" style="padding:4px 12px;border-radius:6px;border:1px solid var(--ipb-navy-light);background:#edf3fe;color:var(--ipb-navy);cursor:pointer;font-size:12px;font-weight:600;">🗂 Archief</button>
+    </div>
+  </div>
   <div class="lines-body" id="lines-body"></div>
 </div>
 
@@ -297,6 +365,13 @@ textarea.fi{height:80px;resize:vertical;}
         <button class="afb p1f" data-filter="weekenddag" onclick="filterArchive(this)">WE Dag</button>
         <button class="afb p1f" data-filter="weekendnacht" onclick="filterArchive(this)">WE Nacht</button>
       </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap;">
+        <span style="font-size:12px;font-weight:600;color:var(--ipb-text-muted);">📅 Datum:</span>
+        <input type="date" id="arch-date-from" onchange="renderArch()" style="padding:5px 10px;border:1.5px solid var(--ipb-border);border-radius:6px;font-size:12px;color:var(--ipb-text);background:#fff;" title="Van datum">
+        <span style="font-size:12px;color:var(--ipb-text-muted);">→</span>
+        <input type="date" id="arch-date-to" onchange="renderArch()" style="padding:5px 10px;border:1.5px solid var(--ipb-border);border-radius:6px;font-size:12px;color:var(--ipb-text);background:#fff;" title="Tot datum">
+        <button onclick="clearArchSearch()" style="padding:5px 10px;border-radius:6px;border:1px solid var(--ipb-border);background:var(--ipb-offwhite);color:var(--ipb-text-muted);cursor:pointer;font-size:12px;">✕ Wissen</button>
+      </div>
       <div id="archive-list"></div>
     </div>
   </div>
@@ -310,6 +385,264 @@ textarea.fi{height:80px;resize:vertical;}
 </div>
 </div>
 
+<div class="page" id="page-controle">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+    <div>
+      <div style="font-size:18px;font-weight:800;color:var(--ipb-navy);">📋 Controle Ploegchef</div>
+      <div style="font-size:12px;color:var(--ipb-text-muted);margin-top:2px;">Kwaliteitscontrole productie — Flagstone</div>
+    </div>
+    <button onclick="openControleForm()" style="padding:8px 18px;background:var(--ipb-navy);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;">＋ Nieuwe controle</button>
+  </div>
+
+  <div style="display:flex;gap:8px;margin-bottom:14px;border-bottom:2px solid var(--ipb-border);padding-bottom:0;">
+    <button id="ctrltab-archief" class="ctrl-tab-btn active" onclick="switchCtrlTab('archief')">🗂 Archief <span id="ctrl-cnt" style="background:var(--ipb-navy);color:#fff;font-size:10px;padding:1px 6px;border-radius:20px;margin-left:4px;">0</span></button>
+  </div>
+
+  <!-- Zoekbalk -->
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+    <input type="text" id="ctrl-search" placeholder="🔍 Zoek op teamleider, extrudeur, order..." oninput="renderControle()" style="flex:1;min-width:200px;padding:7px 12px;border:1.5px solid var(--ipb-border);border-radius:7px;font-size:13px;">
+    <input type="date" id="ctrl-from" onchange="renderControle()" style="padding:6px 10px;border:1.5px solid var(--ipb-border);border-radius:6px;font-size:12px;color:var(--ipb-text);" title="Van datum">
+    <span style="font-size:11px;color:var(--ipb-text-muted);">→</span>
+    <input type="date" id="ctrl-to" onchange="renderControle()" style="padding:6px 10px;border:1.5px solid var(--ipb-border);border-radius:6px;font-size:12px;color:var(--ipb-text);" title="Tot datum">
+    <button onclick="clearCtrlSearch()" style="padding:6px 10px;border-radius:6px;border:1px solid var(--ipb-border);background:var(--ipb-offwhite);color:var(--ipb-text-muted);cursor:pointer;font-size:12px;">✕</button>
+    <button onclick="exportControleExcel()" style="padding:6px 14px;border-radius:6px;border:1px solid #2a6018;background:#eef7e9;color:#2a6018;cursor:pointer;font-size:12px;font-weight:600;">📊 Excel</button>
+  </div>
+
+  <div id="ctrl-info" style="font-size:11px;color:var(--ipb-text-muted);margin-bottom:8px;"></div>
+  <div id="ctrl-list"></div>
+</div>
+
+<!-- CONTROLE FORM MODAL -->
+<div class="modal-bg" id="controle-modal" style="display:none;position:fixed;inset:0;background:rgba(15,30,61,.55);z-index:300;align-items:center;justify-content:center;">
+  <div class="modal" style="width:min(680px,95vw);max-height:92vh;overflow-y:auto;">
+    <div class="mh" style="position:sticky;top:0;background:#fff;z-index:5;border-bottom:1px solid var(--ipb-border);">
+      <span class="mt">📋 Nieuwe Controle Ploegchef</span>
+      <button class="mx" onclick="closeControleForm()">x</button>
+    </div>
+    <div class="mb" style="padding:16px;">
+      <!-- Algemeen -->
+      <div style="font-size:12px;font-weight:700;color:var(--ipb-navy);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;padding-bottom:5px;border-bottom:2px solid var(--ipb-green);">Algemeen</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+        <div><label class="fl">Datum</label><input class="fi" type="date" id="cf-datum"></div>
+        <div><label class="fl">Naam Teamleider</label><input class="fi" id="cf-teamleider" placeholder="Naam"></div>
+        <div><label class="fl">Naam Extrudeur</label><input class="fi" id="cf-extrudeur" placeholder="Naam"></div>
+      </div>
+      <div style="margin-top:8px;">
+        <label class="fl">Order Nr. (PO/...)</label>
+        <input class="fi" id="cf-ordernr" placeholder="bv. PO/25/0001234">
+      </div>
+
+      <!-- Metingen -->
+      <div style="font-size:12px;font-weight:700;color:var(--ipb-navy);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 10px;padding-bottom:5px;border-bottom:2px solid var(--ipb-green);">Metingen</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div>
+          <label class="fl">Opgemeten Lengte L.</label>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input class="fi" id="cf-lengte-l" placeholder="mm" style="flex:1;">
+            <select class="fi" id="cf-lengte-l-ok" style="width:90px;padding:8px 6px;">
+              <option value="Ja">✓ Ja</option><option value="Neen">✗ Neen</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="fl">Opgemeten Lengte R.</label>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input class="fi" id="cf-lengte-r" placeholder="mm" style="flex:1;">
+            <select class="fi" id="cf-lengte-r-ok" style="width:90px;padding:8px 6px;">
+              <option value="Ja">✓ Ja</option><option value="Neen">✗ Neen</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="fl">Opgemeten Breedte.</label>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input class="fi" id="cf-breedte" placeholder="mm" style="flex:1;">
+            <select class="fi" id="cf-breedte-ok" style="width:90px;padding:8px 6px;">
+              <option value="Ja">✓ Ja</option><option value="Neen">✗ Neen</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="fl">Opgemeten Dikte.</label>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input class="fi" id="cf-dikte" placeholder="mm" style="flex:1;">
+            <select class="fi" id="cf-dikte-ok" style="width:90px;padding:8px 6px;">
+              <option value="Ja">✓ Ja</option><option value="Neen">✗ Neen</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="fl">Gewogen Gewicht.</label>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input class="fi" id="cf-gewicht" placeholder="kg" style="flex:1;">
+            <select class="fi" id="cf-gewicht-ok" style="width:90px;padding:8px 6px;">
+              <option value="Ja">✓ Ja</option><option value="Neen">✗ Neen</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Kwaliteit checks -->
+      <div style="font-size:12px;font-weight:700;color:var(--ipb-navy);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 10px;padding-bottom:5px;border-bottom:2px solid var(--ipb-green);">Kwaliteitschecks</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div>
+          <label class="fl">Kleur stemt overeen</label>
+          <select class="fi" id="cf-kleur-ok"><option value="Ja">✓ Ja</option><option value="Neen">✗ Neen</option></select>
+        </div>
+        <div>
+          <label class="fl">Juiste additieven gedosseerd</label>
+          <select class="fi" id="cf-additieven-ok"><option value="Ja">✓ Ja</option><option value="Neen">✗ Neen</option></select>
+        </div>
+      </div>
+      <div style="margin-top:8px;">
+        <label class="fl">Afwijkingen additieven (indien van toepassing)</label>
+        <input class="fi" id="cf-additieven-afwijking" placeholder="Beschrijf de afwijking...">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px;">
+        <div>
+          <label class="fl">Zonaleverdelingen gemeten & ingevuld</label>
+          <select class="fi" id="cf-zonale-ok"><option value="Ja">✓ Ja</option><option value="Neen">✗ Neen</option></select>
+          <input class="fi" id="cf-zonale-reden" placeholder="Reden indien Neen..." style="margin-top:5px;">
+        </div>
+        <div>
+          <label class="fl">Lipmetingen gebeurd</label>
+          <select class="fi" id="cf-lipmeting-ok"><option value="Ja">✓ Ja</option><option value="Neen">✗ Neen</option></select>
+          <input class="fi" id="cf-lipmeting-reden" placeholder="Reden indien Neen..." style="margin-top:5px;">
+        </div>
+      </div>
+      <div style="margin-top:8px;">
+        <label class="fl">Outputblad aanwezig & ingevuld</label>
+        <select class="fi" id="cf-outputblad-ok"><option value="Ja">✓ Ja</option><option value="Neen">✗ Neen</option></select>
+      </div>
+    </div>
+    <div class="mf">
+      <button class="bc" onclick="closeControleForm()">Annuleer</button>
+      <button class="bs" onclick="saveControleForm()">📋 Opslaan</button>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="page-quality">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
+    <div>
+      <div style="font-size:18px;font-weight:800;color:var(--ipb-navy);">🔬 Kwaliteit</div>
+      <div style="font-size:12px;color:var(--ipb-text-muted);margin-top:2px;">Meldingen en archief</div>
+    </div>
+    <button onclick="openQualityChoice()" style="padding:8px 18px;background:var(--ipb-navy);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;">＋ Nieuwe melding</button>
+  </div>
+
+  <!-- TABS -->
+  <div style="display:flex;gap:8px;margin-bottom:14px;border-bottom:2px solid var(--ipb-border);padding-bottom:0;">
+    <button id="qtab-meldingen" onclick="switchQTab('meldingen')" style="padding:8px 16px;border:none;background:none;font-size:13px;font-weight:700;color:var(--ipb-navy);border-bottom:3px solid var(--ipb-navy);margin-bottom:-2px;cursor:pointer;">📋 Openstaand <span id="q-open-cnt" style="background:var(--ipb-navy);color:#fff;font-size:10px;padding:1px 6px;border-radius:20px;margin-left:4px;">0</span></button>
+    <button id="qtab-archief" onclick="switchQTab('archief')" style="padding:8px 16px;border:none;background:none;font-size:13px;font-weight:700;color:var(--ipb-text-muted);border-bottom:3px solid transparent;margin-bottom:-2px;cursor:pointer;">🗂 Archief</button>
+  </div>
+
+  <!-- OPENSTAAND -->
+  <div id="qpanel-meldingen">
+    <div id="quality-list"><div style="text-align:center;padding:32px;color:var(--ipb-text-light);">Nog geen openstaande meldingen</div></div>
+  </div>
+
+  <!-- ARCHIEF -->
+  <div id="qpanel-archief" style="display:none;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+      <span style="font-size:12px;font-weight:600;color:var(--ipb-text-muted);">Filter:</span>
+      <button class="qfb active" data-qf="all" onclick="filterQuality(this)">Alles</button>
+      <button class="qfb" data-qf="capa" onclick="filterQuality(this)">CAPA</button>
+      <button class="qfb" data-qf="knaagdieren" onclick="filterQuality(this)">Knaagdieren</button>
+      <button onclick="exportQualityExcel()" style="padding:5px 13px;border-radius:6px;border:1px solid #2a6018;background:#eef7e9;color:#2a6018;cursor:pointer;font-size:12px;font-weight:600;margin-left:8px;">📊 Export naar Excel</button>
+    </div>
+    <div id="quality-archive-list"><div style="text-align:center;padding:32px;color:var(--ipb-text-light);">Archief laden...</div></div>
+  </div>
+</div>
+
+<!-- QUALITY CHOICE MODAL -->
+<div class="modal-bg" id="quality-choice-modal" style="display:none;position:fixed;inset:0;background:rgba(15,30,61,.55);z-index:300;align-items:center;justify-content:center;">
+  <div class="modal" style="max-width:400px;">
+    <div class="mh"><span class="mt">Kies formulier</span><button class="mx" onclick="closeQualityChoice()">x</button></div>
+    <div class="mb" style="display:flex;flex-direction:column;gap:12px;padding:16px;">
+      <button onclick="openQualityForm('capa')" style="padding:16px;border-radius:10px;border:2px solid var(--ipb-navy);background:#edf3fe;cursor:pointer;text-align:left;">
+        <div style="font-size:14px;font-weight:700;color:var(--ipb-navy);">📋 CAPA-formulier</div>
+        <div style="font-size:11px;color:var(--ipb-text-muted);margin-top:3px;">F-QC-022 — Non-conformiteit & corrigerende acties</div>
+      </button>
+      <button onclick="openQualityForm('knaagdieren')" style="padding:16px;border-radius:10px;border:2px solid #6ab04c;background:#eef7e9;cursor:pointer;text-align:left;">
+        <div style="font-size:14px;font-weight:700;color:#2a6018;">🐭 Meldingsformulier Knaagdieren</div>
+        <div style="font-size:11px;color:var(--ipb-text-muted);margin-top:3px;">F-QC-023 — Melding knaagdierenwaarneming</div>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- CAPA FORM MODAL -->
+<div class="modal-bg" id="capa-modal" style="display:none;position:fixed;inset:0;background:rgba(15,30,61,.55);z-index:300;align-items:center;justify-content:center;">
+  <div class="modal" style="width:min(600px,95vw);max-height:90vh;overflow-y:auto;">
+    <div class="mh" style="position:sticky;top:0;background:#fff;z-index:5;border-bottom:1px solid var(--ipb-border);">
+      <span class="mt">📋 CAPA-formulier — F-QC-022</span>
+      <button class="mx" onclick="closeCapaModal()">x</button>
+    </div>
+    <div class="mb" style="padding:16px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div><label class="fl">Naam melder *</label><input class="fi" id="capa-name" placeholder="Uw naam"></div>
+        <div><label class="fl">Datum</label><input class="fi" type="date" id="capa-date"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px;">
+        <div><label class="fl">Klatch No.</label><input class="fi" id="capa-klatch" placeholder="Klatch nummer"></div>
+        <div><label class="fl">Prod. Order No.</label><input class="fi" id="capa-order" placeholder="Productie order"></div>
+      </div>
+      <label class="fl" style="margin-top:10px;">Beschrijving Non-conformiteit *</label>
+      <textarea class="fi" id="capa-desc" placeholder="Beschrijf de non-conformiteit..." style="height:80px;"></textarea>
+      <label class="fl" style="margin-top:8px;">Corrigerende / Preventieve Acties *</label>
+      <textarea class="fi" id="capa-actions" placeholder="Beschrijf de acties..." style="height:80px;"></textarea>
+      <label class="fl" style="margin-top:8px;">Verantwoordelijke afdeling/persoon</label>
+      <input class="fi" id="capa-resp" placeholder="Naam of afdeling">
+      <label class="fl" style="margin-top:8px;">Verificatie van Corrigerende Acties</label>
+      <textarea class="fi" id="capa-verif" placeholder="Verificatie..." style="height:60px;"></textarea>
+      <label class="fl" style="margin-top:8px;">Handtekening verantwoordelijke kwaliteit</label>
+      <input class="fi" id="capa-sign" placeholder="Naam kwaliteitsverantwoordelijke">
+      <label class="fl" style="margin-top:8px;">Status</label>
+      <select class="fi" id="capa-status">
+        <option value="open">🔴 Openstaand</option>
+        <option value="followup">🟠 In opvolging</option>
+        <option value="closed">🟢 Afgesloten</option>
+      </select>
+    </div>
+    <div class="mf">
+      <button class="bc" onclick="closeCapaModal()">Annuleer</button>
+      <button class="bs" onclick="saveCapaForm()">📋 Opslaan</button>
+    </div>
+  </div>
+</div>
+
+<!-- KNAAGDIEREN FORM MODAL -->
+<div class="modal-bg" id="knaag-modal" style="display:none;position:fixed;inset:0;background:rgba(15,30,61,.55);z-index:300;align-items:center;justify-content:center;">
+  <div class="modal" style="width:min(560px,95vw);max-height:90vh;overflow-y:auto;">
+    <div class="mh" style="position:sticky;top:0;background:#fff;z-index:5;border-bottom:1px solid var(--ipb-border);">
+      <span class="mt">🐭 Meldingsformulier Knaagdieren — F-QC-023</span>
+      <button class="mx" onclick="closeKnaagModal()">x</button>
+    </div>
+    <div class="mb" style="padding:16px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div><label class="fl">Naam melder *</label><input class="fi" id="knaag-name" placeholder="Uw naam"></div>
+        <div><label class="fl">Afdeling / Locatie</label><input class="fi" id="knaag-dept" placeholder="Afdeling"></div>
+      </div>
+      <label class="fl" style="margin-top:10px;">Type waarneming *</label>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px;">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;cursor:pointer;"><input type="checkbox" id="knaag-muis"> Muis gezien</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;cursor:pointer;"><input type="checkbox" id="knaag-rat"> Rat gezien</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;cursor:pointer;"><input type="checkbox" id="knaag-meer"> Meerdere knaagdieren gezien <input type="number" id="knaag-aantal" placeholder="±aantal" min="0" style="width:70px;padding:2px 6px;border:1px solid #dde3f0;border-radius:4px;font-size:12px;margin-left:6px;"></label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;cursor:pointer;"><input type="checkbox" id="knaag-sporen"> Sporen (uitwerpselen, knaagschade, geluiden, nesten)</label>
+      </div>
+      <label class="fl" style="margin-top:10px;">Exacte locatie *</label>
+      <input class="fi" id="knaag-loc" placeholder="bv. gang, opslag, productiezone, buiten...">
+      <label class="fl" style="margin-top:8px;">Beschrijving / opmerkingen</label>
+      <textarea class="fi" id="knaag-desc" placeholder="Verdere details..." style="height:70px;"></textarea>
+    </div>
+    <div class="mf">
+      <button class="bc" onclick="closeKnaagModal()">Annuleer</button>
+      <button class="bs" style="background:#2a6018;border-color:#2a6018;" onclick="saveKnaagForm()">🐭 Opslaan</button>
+    </div>
+  </div>
+</div>
+
 <div class="pf">IPB Plastic Sheets · Packaging — Ploegbord v3.0</div>
 
 <div class="lightbox" id="lightbox" onclick="closeLightbox()">
@@ -317,7 +650,42 @@ textarea.fi{height:80px;resize:vertical;}
   <img id="lightbox-img" src="" alt="">
 </div>
 
-<div class="modal-bg" id="reply-modal-bg" style="display:none;position:fixed;inset:0;background:rgba(15,30,61,.55);z-index:300;align-items:center;justify-content:center;">
+<div class="modal-bg" id="lines-archive-modal" style="display:none;position:fixed;inset:0;background:rgba(15,30,61,.55);z-index:300;align-items:center;justify-content:center;">
+  <div class="modal" style="width:min(720px,95vw);max-height:90vh;overflow-y:auto;border-top:4px solid #6ab04c;">
+    <div class="mh" style="position:sticky;top:0;background:#fff;z-index:10;border-bottom:1px solid var(--ipb-border);">
+      <span class="mt">🗂 Archief Lijnstatussen</span>
+      <button class="mx" onclick="closeLinesArchive()">x</button>
+    </div>
+    <div style="padding:12px 16px;background:#f4f6fb;border-bottom:1px solid var(--ipb-border);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <div>
+        <label style="font-size:11px;font-weight:700;color:#5a6a8a;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:3px;">Datum</label>
+        <input type="date" id="arch-date" style="padding:6px 10px;border:1.5px solid var(--ipb-border);border-radius:6px;font-size:13px;color:var(--ipb-text);">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;color:#5a6a8a;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:3px;">Lijn</label>
+        <select id="arch-line" style="padding:6px 10px;border:1.5px solid var(--ipb-border);border-radius:6px;font-size:13px;color:var(--ipb-text);background:#fff;"></select>
+      </div>
+      <button onclick="loadArchiveData()" style="margin-top:16px;padding:7px 16px;background:var(--ipb-navy);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;">🔍 Laden</button>
+    </div>
+    <div style="padding:16px;" id="lines-archive-body">
+      <div style="text-align:center;padding:30px;color:var(--ipb-text-light);">Selecteer een datum en lijn</div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="timeline-modal-bg"   style="display:none;position:fixed;inset:0;background:rgba(15,30,61,.55);z-index:300;align-items:center;justify-content:center;">
+  <div class="modal" style="max-height:85vh;overflow-y:auto;width:min(500px,92vw);">
+    <div class="mh">
+      <span class="mt" id="timeline-modal-title">Tijdslijn</span>
+      <button class="mx" onclick="closeTimelineModal()">x</button>
+    </div>
+    <div class="mb" style="padding:12px 16px;" id="timeline-modal-body">
+      <div style="text-align:center;padding:20px;color:var(--ipb-text-light);">Laden...</div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="reply-modal-bg"   style="display:none;position:fixed;inset:0;background:rgba(15,30,61,.55);z-index:300;align-items:center;justify-content:center;">
   <div class="modal">
     <div class="mh"><span class="mt">Reactie toevoegen</span><button class="mx" onclick="closeReplyModal()">x</button></div>
     <div class="mb">
@@ -360,6 +728,7 @@ textarea.fi{height:80px;resize:vertical;}
 </div>
 <div class="toast" id="toast"></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, set, push, remove, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
@@ -396,6 +765,26 @@ let archFilter='all', unsubs=[], archUnsub=null, snapTimer=null;
 
 const p2=n=>String(n).padStart(2,'0');
 function ts(){const d=new Date();return p2(d.getDate())+'/'+p2(d.getMonth()+1)+'/'+d.getFullYear()+' '+p2(d.getHours())+':'+p2(d.getMinutes());}
+function mkStamp(item){
+  if(!item.by&&!item.time) return '';
+  // Build display: show by + full timestamp (date + time)
+  var timeDisplay = item.time || '';
+  // If time looks like only HH:MM (no date), add today's date for display
+  // ts() format: DD/MM/YYYY HH:MM
+  // tt() format: HH:MM (old entries)
+  var isFullTs = timeDisplay.includes('/');
+  if (!isFullTs && timeDisplay) {
+    var d=new Date();
+    var p2=function(n){return String(n).padStart(2,'0');};
+    timeDisplay = p2(d.getDate())+'/'+p2(d.getMonth()+1)+'/'+d.getFullYear()+' '+timeDisplay;
+  }
+  return '<div class="stamp">'+
+    (item.by?'<span class="stamp-by">'+item.by+'</span>':'')+
+    (item.by&&timeDisplay?'<span style="color:#dde3f0;margin:0 2px;">·</span>':'')+
+    (timeDisplay?'<span class="stamp-time">'+timeDisplay+'</span>':'')+
+  '</div>';
+}
+
 function tt(){const d=new Date();return p2(d.getHours())+':'+p2(d.getMinutes());}
 function ini(n){return(n||'').split(' ').map(w=>w[0]||'').join('').substring(0,2).toUpperCase();}
 const avc=['av-a','av-b','av-c','av-d','av-e'];
@@ -557,6 +946,23 @@ window.signHandover=function(dir){
 
 window.takeSnapshot=function(auto=false){
   const d=state.shift,t=ts();
+  // Strip photo data from snapshot to keep size small
+  function stripPhotos(obj){
+    if(!obj) return obj;
+    const out={};
+    Object.entries(obj).forEach(([k,v])=>{
+      if(!v||typeof v!=='object'){out[k]=v;return;}
+      const {photo,data,...rest}=v;
+      // Recursively strip from replies too
+      if(rest.replies){
+        const rout={};
+        Object.entries(rest.replies).forEach(([rk,rv])=>{rout[rk]=rv;});
+        rest.replies=rout;
+      }
+      out[k]=rest;
+    });
+    return out;
+  }
   const reason=auto==='timeout'?'⚠️ Automatisch (geen ondertekening na 1u)':auto?'🤝 Automatisch (beide ondertekend)':'📸 Manueel';
   push(ref(db,'archive/'+dept),{
     timestamp:t,dept,deptLabel:DL[dept]||dept,
@@ -567,9 +973,15 @@ window.takeSnapshot=function(auto=false){
     afwezigReden:d.afwezigReden||'',
     afwezigNota:d.afwezigNota||'',
     auto,reason,
-    lines:state.lines||{},safety:state.safety||{},machines:state.machines||{},people:state.people||{},
-    dept2:state.dept||{},escalations:state.escalations||{},general:state.general||{},
-    td:state.td||{},incidents:state.incidents||{}
+    lines:opStatusData||{},
+    safety:stripPhotos(state.safety)||{},
+    machines:stripPhotos(state.machines)||{},
+    people:stripPhotos(state.people)||{},
+    dept2:stripPhotos(state.dept)||{},
+    escalations:stripPhotos(state.escalations)||{},
+    general:stripPhotos(state.general)||{},
+    td:state.td||{},
+    incidents:stripPhotos(state.incidents)||{}
   });
   showToast(auto?'📸 Automatische snapshot opgeslagen ✓':'📸 Snapshot opgeslagen in archief ✓');
 };
@@ -582,7 +994,7 @@ const SC=['ok','warn','danger'],MC=['ok','warn','danger','off'],PC=['ok','warn',
 
 function rSafety(key,item){
   const row=document.createElement('div');row.className='sr';row.id='i-'+key;
-  const l=document.createElement('div');l.innerHTML='<div class="sl">'+item.label+'</div><div class="ss">'+(item.sub||'')+'</div>';
+  const l=document.createElement('div');l.innerHTML='<div class="sl">'+item.label+'</div><div class="ss">'+(item.sub||'')+'</div>'+mkStamp(item);
   const r=document.createElement('div');r.className='srr';
   const b=document.createElement('span');b.className='badge '+bc(item.status);b.textContent=SL[item.status]||item.status;b.title='Klik om te wijzigen';
   b.onclick=()=>{const n=SC[(SC.indexOf(item.status)+1)%SC.length];update(ref(db,dept+'/safety/'+key),{status:n});};
@@ -591,7 +1003,7 @@ function rSafety(key,item){
 }
 function rMachine(key,item){
   const row=document.createElement('div');row.className='sr';row.id='i-'+key;
-  const l=document.createElement('div');l.innerHTML='<div class="sl">'+item.label+'</div><div class="ss">'+(item.sub||'')+'</div>';
+  const l=document.createElement('div');l.innerHTML='<div class="sl">'+item.label+'</div><div class="ss">'+(item.sub||'')+'</div>'+mkStamp(item);
   const r=document.createElement('div');r.className='srr';
   const b=document.createElement('span');b.className='badge '+bc(item.status);b.textContent=ML[item.status]||item.status;b.title='Klik om te wijzigen';
   b.onclick=()=>{const n=MC[(MC.indexOf(item.status)+1)%MC.length];update(ref(db,dept+'/machines/'+key),{status:n});};
@@ -601,7 +1013,7 @@ function rMachine(key,item){
 function rPerson(key,item){
   const row=document.createElement('div');row.className='pr';row.id='i-'+key;
   const a=document.createElement('div');a.className='av '+gav(item.name);a.textContent=ini(item.name);
-  const info=document.createElement('div');info.style.flex='1';info.innerHTML='<div class="pn">'+item.name+'</div><div class="pr2">'+(item.role||'')+(item.by?' · <span style="color:var(--ipb-text-light);font-size:10px;">'+item.by+'</span>':'')+'</div>'+(item.note?'<div style="font-size:11px;color:var(--ipb-text-muted);margin-top:2px;font-style:italic;">'+item.note+'</div>':'');
+  const info=document.createElement('div');info.style.flex='1';info.innerHTML='<div class="pn">'+item.name+'</div><div class="pr2">'+(item.role||'')+'</div>'+(item.note?'<div style="font-size:11px;color:var(--ipb-text-muted);margin-top:2px;font-style:italic;">'+item.note+'</div>':'')+mkStamp(item);
   const r=document.createElement('div');r.className='srr';
   const b=document.createElement('span');b.className='badge '+bc(item.status);b.textContent=PL[item.status]||item.status;b.title='Klik om te wijzigen';
   b.onclick=()=>{const n=PC[(PC.indexOf(item.status)+1)%PC.length];update(ref(db,dept+'/people/'+key),{status:n});};
@@ -612,7 +1024,7 @@ const DC={planning:{cls:'n-planning',chip:'cp',label:'Planning'},quality:{cls:'n
 function rDept(key,item){
   const c=DC[item.dept]||DC.general;
   const el=document.createElement('div');el.className='note '+c.cls;el.id='i-'+key;
-  el.innerHTML='<div class="nm"><span class="chip '+c.chip+'">'+c.label+'</span><span>'+(item.time||'')+'</span></div><div class="nt" style="padding-right:24px;">'+(item.text||'')+'</div>';
+  el.innerHTML='<div class="nm"><span class="chip '+c.chip+'">'+c.label+'</span><span>'+(item.time||'')+'</span></div><div class="nt" style="padding-right:24px;">'+(item.text||'')+'</div>'+mkStamp(item);
   el.appendChild(db2(dept+'/dept/'+key));addReplySection(el,'dept',key,item.replies,false);
   // Photo button
   const pb=document.createElement('button');pb.className='photo-btn';pb.textContent='📷';pb.style.marginTop='6px';
@@ -625,13 +1037,13 @@ function rEsc(key,item){
   const c=EC[item.prio]||EC.info;
   const tl=item.to==='colleague'?'→ Collega ploegchef':'→ Afdelingshoofd / Directie';
   const row=document.createElement('div');row.className='er';row.id='i-'+key;
-  row.innerHTML='<div class="ei '+c.cls+'">'+c.ico+'</div><div style="flex:1"><div class="et">'+(item.label||'')+'</div><div class="ed">'+(item.detail||'')+'</div><div class="eto">'+tl+(item.by?' · <span style="font-style:italic;color:var(--ipb-text-light);">'+item.by+'</span>':'')+'</div></div>';
+  row.innerHTML='<div class="ei '+c.cls+'">'+c.ico+'</div><div style="flex:1"><div class="et">'+(item.label||'')+'</div><div class="ed">'+(item.detail||'')+'</div><div class="eto">'+tl+'</div>'+mkStamp(item)+'</div>';
   row.appendChild(db2(dept+'/escalations/'+key));
   addPhotoToRow(row,'escalations',key,item.photo);addReplySection(row,'escalations',key,item.replies,false);return row;
 }
 function rGen(key,item){
   const el=document.createElement('div');el.className='note';el.id='i-'+key;
-  el.innerHTML='<div class="nm"><strong style="color:var(--ipb-navy)">'+(item.cat||'')+'</strong><span style="display:flex;gap:8px;align-items:center;">'+(item.by?'<span style="font-size:10px;color:var(--ipb-text-light);font-style:italic;">'+item.by+'</span>':'')+'<span>'+(item.time||'')+'</span></span></div><div class="nt" style="padding-right:24px;">'+(item.text||'')+'</div>';
+  el.innerHTML='<div class="nm"><strong style="color:var(--ipb-navy)">'+(item.cat||'')+'</strong><span>'+(item.time||'')+'</span></div><div class="nt" style="padding-right:24px;">'+(item.text||'')+'</div>'+mkStamp(item);
   el.appendChild(db2(dept+'/general/'+key));addReplySection(el,'general',key,item.replies,false);
   const pb=document.createElement('button');pb.className='photo-btn';pb.textContent='📷';pb.style.marginTop='6px';
   pb.onclick=function(){openPhotoModal('general',key);};el.appendChild(pb);
@@ -726,7 +1138,16 @@ function rebindArch(){
     document.getElementById('cnt-archive').textContent=Object.keys(archData).length;
     renderArch();
   });
+
 }
+window.clearArchSearch=function(){
+  const f=document.getElementById('arch-date-from');
+  const t=document.getElementById('arch-date-to');
+  if(f) f.value='';
+  if(t) t.value='';
+  renderArch();
+};
+
 window.filterArchive=function(btn){
   document.querySelectorAll('.afb').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');archFilter=btn.dataset.filter;renderArch();
@@ -734,9 +1155,50 @@ window.filterArchive=function(btn){
 
 function renderArch(){
   const list=document.getElementById('archive-list');list.innerHTML='';
-  const entries=Object.entries(archData).filter(([,v])=>archFilter==='all'||v.shift===archFilter);
-  if(!entries.length){list.innerHTML='<div class="ae">📂 Nog geen snapshots voor deze afdeling</div>';return;}
-  entries.sort((a,b)=>b[0].localeCompare(a[0])).forEach(([key,snap])=>{
+  const allKeys=Object.keys(archData);
+
+  // Date filter
+  const dateFrom = (document.getElementById('arch-date-from')||{}).value||'';
+  const dateTo   = (document.getElementById('arch-date-to')||{}).value||'';
+
+  function tsToSortable(ts){
+    if(!ts) return '';
+    const m=ts.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+    return m ? m[3]+'-'+m[2]+'-'+m[1] : '';
+  }
+
+  const entries=Object.entries(archData).filter(([,v])=>{
+    // Shift filter
+    if(archFilter!=='all' && v.shift!==archFilter) return false;
+    // Date filter
+    if(dateFrom||dateTo){
+      const snapDate=tsToSortable(v.timestamp||'');
+      if(dateFrom && snapDate && snapDate<dateFrom) return false;
+      if(dateTo   && snapDate && snapDate>dateTo)   return false;
+    }
+    return true;
+  });
+
+  // Info bar
+  const dbg=document.createElement('div');
+  dbg.style.cssText='font-size:11px;color:var(--ipb-text-muted);padding:6px 10px;background:#f4f6fb;border-radius:6px;margin-bottom:8px;';
+  dbg.textContent='Geladen: '+allKeys.length+' | Zichtbaar: '+entries.length+(dateFrom||dateTo?' (datumfilter actief)':'');
+  list.appendChild(dbg);
+  if(!entries.length){list.innerHTML+='<div class="ae">📂 Geen snapshots gevonden voor deze selectie</div>';return;}
+  // Sort by timestamp field (DD/MM/YYYY HH:MM) instead of Firebase key
+  const sorted = entries.sort((a,b)=>{
+    const tsA=a[1].timestamp||'';
+    const tsB=b[1].timestamp||'';
+    // Convert DD/MM/YYYY HH:MM to sortable YYYY/MM/DD HH:MM
+    function toSort(ts){
+      if(!ts) return '';
+      const m=ts.match(/(\d{2})\/(\d{2})\/(\d{4}) (\d{2}:\d{2})/);
+      return m ? m[3]+'/'+m[2]+'/'+m[1]+' '+m[4] : ts;
+    }
+    return toSort(tsB).localeCompare(toSort(tsA));
+  });
+  sorted.forEach(([key,snap])=>{
+    try{
     const card=document.createElement('div');card.className='scard';
     const outSig=snap.so?'<span class="ssig ok">✓ Afgesloten '+snap.so+'</span>':'<span class="ssig pending">⏳ Niet afgesloten</span>';
     const inSig=snap.si?'<span class="ssig ok">✓ Overgenomen '+snap.si+'</span>':'<span class="ssig pending">⏳ Niet overgenomen</span>';
@@ -765,6 +1227,13 @@ function renderArch(){
       sEsc('Escalaties ↑',snap.escalations)+
     '</div>';
     list.appendChild(card);
+    }catch(err){
+      console.warn('Snapshot render error voor key '+key+':', err);
+      const errCard=document.createElement('div');
+      errCard.className='scard';
+      errCard.innerHTML='<div class="shead" style="background:#8a3a3a;cursor:default;"><div class="shl"><span class="sdt">📅 '+(snap.timestamp||key)+'</span><span style="color:rgba(255,255,255,.6);font-size:11px;">⚠ Fout bij laden van dit snapshot</span></div></div>';
+      list.appendChild(errCard);
+    }
   });
 }
 function sOD(snap){
@@ -856,9 +1325,9 @@ window.saveItem=function(){
   const g=id=>(document.getElementById(id)||{}).value||'';
   const t=tt();
   const by=(document.getElementById('f-by')||{}).value||'';
-  if(cType==='safety')     push(ref(db,dp('safety')),    {label:g('f0'),sub:g('f1'),status:g('f2'),by:by});
-  if(cType==='machine')    push(ref(db,dp('machines')),  {label:g('f0'),sub:g('f1'),status:g('f2'),by:by});
-  if(cType==='people')     push(ref(db,dp('people')),    {name:g('f0'),role:g('f1'),status:g('f2'),by:by,note:g('f3')});
+  if(cType==='safety')     push(ref(db,dp('safety')),    {label:g('f0'),sub:g('f1'),status:g('f2'),by:by,time:ts()});
+  if(cType==='machine')    push(ref(db,dp('machines')),  {label:g('f0'),sub:g('f1'),status:g('f2'),by:by,time:ts()});
+  if(cType==='people')     push(ref(db,dp('people')),    {name:g('f0'),role:g('f1'),status:g('f2'),by:by,note:g('f3'),time:ts()});
   if(cType==='dept')       push(ref(db,dp('dept')),      {dept:g('f0'),text:g('f1'),time:t,by:by});
   if(cType==='escalation') push(ref(db,dp('escalations')),{prio:g('f0'),label:g('f1'),detail:g('f2'),to:g('f3'),time:t,by:by});
   if(cType==='general')    push(ref(db,dp('general')),   {cat:g('f0'),text:g('f1'),time:t,by:by});
@@ -879,18 +1348,35 @@ const LINES_PER_DEPT = {
   Converting: []
 };
 
+// Operator status data - bewaard voor latere tijdslijn integratie
+const OP_STATUS_LABELS = {actief:'Actief',vertraagd:'Vertraagd',onderhoud:'Onderhoud',panne:'Panne',stilstand:'Geen productie'};
+const OP_STATUS_COLORS = {actief:'#6ab04c',vertraagd:'#f5a623',onderhoud:'#378ADD',panne:'#e24b4a',stilstand:'#8a9abf'};
+let opStatusData = {};
+
 function getLines() { return LINES_PER_DEPT[dept] || []; }
+
+let linesUnsub = null;
+let opStatusUnsub = null;
 
 function initLines() {
   const card = document.querySelector('.lines-card');
   const lines = getLines();
   if (card) card.style.display = lines.length === 0 ? 'none' : 'block';
+  renderLines();
+}
+
+function renderLines() {
   const body = document.getElementById('lines-body');
   body.innerHTML = '';
+  const lines = getLines();
   lines.forEach(function(line) {
+    const active = state.lines && state.lines[line] === true;
     const div = document.createElement('div');
-    div.className = 'line-toggle'; div.id = 'lt-'+line;
-    div.innerHTML = '<span class="line-name">'+line+'</span><div class="toggle-sw" id="tsw-'+line+'"></div>';
+    div.className = 'line-toggle ' + (active ? 'active' : 'inactive');
+    div.id = 'lt-' + line;
+    div.innerHTML =
+      '<span class="line-name">' + line + '</span>' +
+      '<div class="toggle-sw' + (active ? ' on' : '') + '" id="tsw-' + line + '"></div>';
     div.onclick = function() { toggleLine(line); };
     body.appendChild(div);
   });
@@ -898,31 +1384,581 @@ function initLines() {
 
 function toggleLine(line) {
   const current = (state.lines && state.lines[line]) === true;
-  const newVal = !current;
-  update(ref(db, dept+'/lines'), {[line]: newVal});
+  update(ref(db, dept + '/lines'), {[line]: !current});
 }
 
 function applyLines(linesData) {
   state.lines = linesData || {};
   getLines().forEach(function(line) {
     const active = state.lines[line] === true;
-    const div = document.getElementById('lt-'+line);
-    const sw = document.getElementById('tsw-'+line);
-    if (div) { div.className = 'line-toggle '+(active?'active':'inactive'); }
-    if (sw) { sw.className = 'toggle-sw'+(active?' on':''); }
+    const div = document.getElementById('lt-' + line);
+    const sw = document.getElementById('tsw-' + line);
+    if (div) div.className = 'line-toggle ' + (active ? 'active' : 'inactive');
+    if (sw) sw.className = 'toggle-sw' + (active ? ' on' : '');
   });
 }
 
-let linesUnsub = null;
+function rebindOpStatus() {
+  // Operator status data in achtergrond laden voor latere tijdslijn integratie
+  if (opStatusUnsub) opStatusUnsub();
+  opStatusUnsub = onValue(ref(db, 'operator-status/' + dept), function(snap) {
+    opStatusData = snap.val() || {};
+  });
+}
+
 function rebindLines() {
   if (linesUnsub) linesUnsub();
-  initLines(); // rebuild toggles for current dept
-  linesUnsub = onValue(ref(db, dept+'/lines'), function(snap) {
+  initLines();
+  linesUnsub = onValue(ref(db, dept + '/lines'), function(snap) {
     applyLines(snap.val());
+  });
+  rebindOpStatus();
+}
+
+// ===== CONTROLE PLOEGCHEF =====
+let controleUnsub = null;
+let controleData = {};
+
+function loadControle() {
+  if (controleUnsub) controleUnsub();
+  controleUnsub = onValue(ref(db,'controles'), function(snap) {
+    controleData = snap.val() || {};
+    document.getElementById('ctrl-cnt').textContent = Object.keys(controleData).length;
+    renderControle();
   });
 }
 
-rebindLines();
+window.switchCtrlTab = function(tab) {};
+
+window.clearCtrlSearch = function() {
+  var f=document.getElementById('ctrl-from'), t=document.getElementById('ctrl-to'), s=document.getElementById('ctrl-search');
+  if(f) f.value=''; if(t) t.value=''; if(s) s.value='';
+  renderControle();
+};
+
+function dateToCmp(ddmmyyyy) {
+  if(!ddmmyyyy) return '';
+  var p=ddmmyyyy.split('/');
+  return p.length===3 ? p[2]+'-'+p[1]+'-'+p[0] : ddmmyyyy;
+}
+
+function renderControle() {
+  var list = document.getElementById('ctrl-list');
+  var infoEl = document.getElementById('ctrl-info');
+  if (!list) return;
+
+  var search = ((document.getElementById('ctrl-search')||{}).value||'').toLowerCase();
+  var fromV = (document.getElementById('ctrl-from')||{}).value||'';
+  var toV   = (document.getElementById('ctrl-to')||{}).value||'';
+
+  var all = Object.entries(controleData);
+  var filtered = all.filter(function(e) {
+    var v = e[1];
+    // Date filter
+    if (fromV || toV) {
+      var d = dateToCmp(v.datum||'');
+      if (fromV && d && d < fromV) return false;
+      if (toV   && d && d > toV)   return false;
+    }
+    // Text search
+    if (search) {
+      var txt = ((v.teamleider||'')+(v.extrudeur||'')+(v.ordernr||'')+(v.datum||'')).toLowerCase();
+      if (!txt.includes(search)) return false;
+    }
+    return true;
+  });
+
+  // Sort by date desc (newest first)
+  filtered.sort(function(a,b) {
+    return dateToCmp(b[1].datum||'').localeCompare(dateToCmp(a[1].datum||''));
+  });
+
+  if (infoEl) infoEl.textContent = 'Totaal: '+all.length+' controles | Zichtbaar: '+filtered.length+(search||fromV||toV?' (filter actief)':'');
+
+  list.innerHTML = '';
+  if (!filtered.length) {
+    list.innerHTML = '<div style="text-align:center;padding:32px;color:var(--ipb-text-light);">Geen controles gevonden</div>';
+    return;
+  }
+
+  filtered.forEach(function(entry) {
+    var key = entry[0], v = entry[1];
+    try {
+      var card = document.createElement('div'); card.className='ctrl-card';
+
+      // Determine if any NOK
+      var hasNok = [v.lengte_l_ok,v.lengte_r_ok,v.breedte_ok,v.dikte_ok,v.gewicht_ok,v.kleur_ok,v.additieven_ok,v.zonale_ok,v.lipmeting_ok,v.outputblad_ok]
+        .some(function(x){ return x && x.toLowerCase().startsWith('n'); });
+
+      var head = document.createElement('div'); head.className='ctrl-head';
+      head.onclick = function() { body.classList.toggle('open'); };
+
+      // Badge datum
+      var dateBadge = document.createElement('span');
+      dateBadge.style.cssText='font-size:12px;font-weight:700;color:var(--ipb-text-muted);min-width:80px;';
+      dateBadge.textContent = v.datum || '—';
+
+      var tlSpan = document.createElement('span');
+      tlSpan.style.cssText='font-size:13px;font-weight:700;color:var(--ipb-navy);flex:1;';
+      tlSpan.textContent = (v.teamleider||'—') + ' → ' + (v.extrudeur||'—');
+
+      var orderSpan = document.createElement('span');
+      orderSpan.style.cssText='font-size:11px;color:var(--ipb-text-muted);';
+      orderSpan.textContent = v.ordernr || '';
+
+      var nokBadge = document.createElement('span');
+      nokBadge.style.cssText='font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;'+(hasNok?'background:#fef1f1;color:#8b1a1a;':'background:#eef7e9;color:#2a6018;');
+      nokBadge.textContent = hasNok ? '⚠ NOK' : '✓ OK';
+
+      var delBtn = document.createElement('button');
+      delBtn.style.cssText='padding:2px 8px;border-radius:5px;border:1px solid #e24b4a;background:#fef1f1;color:#8b1a1a;cursor:pointer;font-size:11px;margin-left:4px;';
+      delBtn.textContent = '🗑';
+      delBtn.onclick = function(e) { e.stopPropagation(); if(window.confirm('Controle verwijderen?')) remove(ref(db,'controles/'+key)); };
+
+      head.appendChild(dateBadge);
+      head.appendChild(tlSpan);
+      head.appendChild(orderSpan);
+      head.appendChild(nokBadge);
+      head.appendChild(delBtn);
+
+      var body = document.createElement('div'); body.className='ctrl-body';
+
+      function fld(lbl, val, isCheck) {
+        var d=document.createElement('div'); d.className='ctrl-field';
+        var l=document.createElement('div'); l.className='ctrl-lbl'; l.textContent=lbl;
+        var vd=document.createElement('div'); vd.className='ctrl-val';
+        if (isCheck) {
+          var isNok = val && val.toLowerCase().startsWith('n');
+          vd.className = 'ctrl-val '+(isNok?'ctrl-nok':'ctrl-ok');
+          vd.textContent = val || '—';
+        } else { vd.textContent = val || '—'; }
+        d.appendChild(l); d.appendChild(vd);
+        return d;
+      }
+
+      var grid = document.createElement('div'); grid.className='ctrl-grid';
+      grid.appendChild(fld('Datum', v.datum));
+      grid.appendChild(fld('Teamleider', v.teamleider));
+      grid.appendChild(fld('Extrudeur', v.extrudeur));
+      grid.appendChild(fld('Order Nr.', v.ordernr));
+      grid.appendChild(fld('Lengte L', v.lengte_l));
+      grid.appendChild(fld('Lengte L OK', v.lengte_l_ok, true));
+      grid.appendChild(fld('Lengte R', v.lengte_r));
+      grid.appendChild(fld('Lengte R OK', v.lengte_r_ok, true));
+      grid.appendChild(fld('Breedte', v.breedte));
+      grid.appendChild(fld('Breedte OK', v.breedte_ok, true));
+      grid.appendChild(fld('Dikte', v.dikte));
+      grid.appendChild(fld('Dikte OK', v.dikte_ok, true));
+      grid.appendChild(fld('Gewicht', v.gewicht));
+      grid.appendChild(fld('Gewicht OK', v.gewicht_ok, true));
+      grid.appendChild(fld('Kleur OK', v.kleur_ok, true));
+      grid.appendChild(fld('Additieven OK', v.additieven_ok, true));
+      grid.appendChild(fld('Zonale OK', v.zonale_ok, true));
+      grid.appendChild(fld('Lipmeting OK', v.lipmeting_ok, true));
+      grid.appendChild(fld('Outputblad OK', v.outputblad_ok, true));
+      body.appendChild(grid);
+
+      if (v.additieven_afwijking) {
+        var af=document.createElement('div');af.style.cssText='margin-top:8px;font-size:12px;';
+        af.innerHTML='<span style="font-weight:700;color:var(--ipb-text-muted);">Afwijking additieven:</span> '+v.additieven_afwijking;
+        body.appendChild(af);
+      }
+      if (v.zonale_reden) {
+        var zr=document.createElement('div');zr.style.cssText='margin-top:5px;font-size:12px;';
+        zr.innerHTML='<span style="font-weight:700;color:var(--ipb-text-muted);">Reden zonale:</span> '+v.zonale_reden;
+        body.appendChild(zr);
+      }
+      if (v.lipmeting_reden) {
+        var lr=document.createElement('div');lr.style.cssText='margin-top:5px;font-size:12px;';
+        lr.innerHTML='<span style="font-weight:700;color:var(--ipb-text-muted);">Reden lipmeting:</span> '+v.lipmeting_reden;
+        body.appendChild(lr);
+      }
+      if (v.createdAt) {
+        var ca=document.createElement('div');ca.style.cssText='margin-top:8px;font-size:11px;color:var(--ipb-text-light);';
+        ca.textContent='Aangemeld: '+v.createdAt+(v.createdBy?' door '+v.createdBy:'');
+        body.appendChild(ca);
+      }
+
+      card.appendChild(head); card.appendChild(body);
+      list.appendChild(card);
+    } catch(e) { console.warn('Ctrl card error', key, e); }
+  });
+}
+
+window.openControleForm = function() {
+  var d=new Date(), p2=function(n){return String(n).padStart(2,'0');};
+  document.getElementById('cf-datum').value = d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());
+  var chief = state.shift&&state.shift.chief ? state.shift.chief : '';
+  document.getElementById('cf-teamleider').value = chief;
+  ['cf-extrudeur','cf-ordernr','cf-additieven-afwijking','cf-zonale-reden','cf-lipmeting-reden',
+   'cf-lengte-l','cf-lengte-r','cf-breedte','cf-dikte','cf-gewicht'].forEach(function(id){
+    var el=document.getElementById(id); if(el) el.value='';
+  });
+  ['cf-lengte-l-ok','cf-lengte-r-ok','cf-breedte-ok','cf-dikte-ok','cf-gewicht-ok',
+   'cf-kleur-ok','cf-additieven-ok','cf-zonale-ok','cf-lipmeting-ok','cf-outputblad-ok'].forEach(function(id){
+    var el=document.getElementById(id); if(el) el.value='Ja';
+  });
+  document.getElementById('controle-modal').style.display='flex';
+};
+
+window.closeControleForm = function() {
+  document.getElementById('controle-modal').style.display='none';
+};
+
+window.saveControleForm = function() {
+  var g=function(id){return (document.getElementById(id)||{}).value||'';};
+  var datumRaw = g('cf-datum');
+  if (!datumRaw) { alert('Kies een datum'); return; }
+  if (!g('cf-teamleider')) { alert('Vul de naam van de teamleider in'); return; }
+  // Convert YYYY-MM-DD to DD/MM/YYYY
+  var dp=datumRaw.split('-');
+  var datum = dp.length===3 ? dp[2]+'/'+dp[1]+'/'+dp[0] : datumRaw;
+  push(ref(db,'controles'), {
+    datum:datum, teamleider:g('cf-teamleider'), extrudeur:g('cf-extrudeur'), ordernr:g('cf-ordernr'),
+    lengte_l:g('cf-lengte-l'), lengte_l_ok:g('cf-lengte-l-ok'),
+    lengte_r:g('cf-lengte-r'), lengte_r_ok:g('cf-lengte-r-ok'),
+    breedte:g('cf-breedte'), breedte_ok:g('cf-breedte-ok'),
+    dikte:g('cf-dikte'), dikte_ok:g('cf-dikte-ok'),
+    gewicht:g('cf-gewicht'), gewicht_ok:g('cf-gewicht-ok'),
+    kleur_ok:g('cf-kleur-ok'), additieven_ok:g('cf-additieven-ok'),
+    additieven_afwijking:g('cf-additieven-afwijking'),
+    zonale_ok:g('cf-zonale-ok'), zonale_reden:g('cf-zonale-reden'),
+    lipmeting_ok:g('cf-lipmeting-ok'), lipmeting_reden:g('cf-lipmeting-reden'),
+    outputblad_ok:g('cf-outputblad-ok'),
+    createdAt:ts(), createdBy:g('cf-teamleider'), bron:'manueel'
+  }).then(function() {
+    closeControleForm();
+    showToast('Controle opgeslagen ✓');
+    showPage('controle', document.querySelector('[onclick*="controle"]'));
+  });
+};
+
+window.exportControleExcel = function() {
+  var search = ((document.getElementById('ctrl-search')||{}).value||'').toLowerCase();
+  var fromV = (document.getElementById('ctrl-from')||{}).value||'';
+  var toV   = (document.getElementById('ctrl-to')||{}).value||'';
+  var all = Object.entries(controleData);
+  var filtered = all.filter(function(e) {
+    var v=e[1];
+    if(fromV||toV){var d=dateToCmp(v.datum||'');if(fromV&&d&&d<fromV)return false;if(toV&&d&&d>toV)return false;}
+    if(search){var t=((v.teamleider||'')+(v.extrudeur||'')+(v.ordernr||'')+(v.datum||'')).toLowerCase();if(!t.includes(search))return false;}
+    return true;
+  });
+  filtered.sort(function(a,b){return dateToCmp(b[1].datum||'').localeCompare(dateToCmp(a[1].datum||''));});
+  var hdrs=['Datum','Teamleider','Extrudeur','Order Nr.','Lengte L','Lengte L OK','Lengte R','Lengte R OK','Breedte','Breedte OK','Dikte','Dikte OK','Gewicht','Gewicht OK','Kleur OK','Additieven OK','Afwijking Additieven','Zonale OK','Reden Zonale','Lipmeting OK','Reden Lipmeting','Outputblad OK','Aangemeld op','Aangemeld door'];
+  var rows=[hdrs];
+  filtered.forEach(function(e){
+    var v=e[1];
+    rows.push([v.datum||'',v.teamleider||'',v.extrudeur||'',v.ordernr||'',v.lengte_l||'',v.lengte_l_ok||'',v.lengte_r||'',v.lengte_r_ok||'',v.breedte||'',v.breedte_ok||'',v.dikte||'',v.dikte_ok||'',v.gewicht||'',v.gewicht_ok||'',v.kleur_ok||'',v.additieven_ok||'',v.additieven_afwijking||'',v.zonale_ok||'',v.zonale_reden||'',v.lipmeting_ok||'',v.lipmeting_reden||'',v.outputblad_ok||'',v.createdAt||'',v.createdBy||'']);
+  });
+  var wb=window.XLSX.utils.book_new();
+  var ws=window.XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:12},{wch:16},{wch:16},{wch:18},{wch:10},{wch:10},{wch:10},{wch:10},{wch:10},{wch:10},{wch:10},{wch:10},{wch:10},{wch:10},{wch:10},{wch:12},{wch:25},{wch:10},{wch:25},{wch:12},{wch:25},{wch:12},{wch:18},{wch:16}];
+  window.XLSX.utils.book_append_sheet(wb, ws, 'Controles');
+  var d=new Date(), p2=function(n){return String(n).padStart(2,'0');};
+  window.XLSX.writeFile(wb,'IPB_Controle_'+d.getFullYear()+p2(d.getMonth()+1)+p2(d.getDate())+'.xlsx');
+  showToast('Excel geëxporteerd ✓');
+};
+
+loadControle();
+
+// ===== KWALITEIT =====
+let qualityUnsub = null;
+let qualityData = {};
+let qualityFilter = 'all';
+let qualityTab = 'meldingen';
+
+window.switchQTab = function(tab) {
+  qualityTab = tab;
+  document.getElementById('qpanel-meldingen').style.display = tab==='meldingen'?'block':'none';
+  document.getElementById('qpanel-archief').style.display = tab==='archief'?'block':'none';
+  const btnM = document.getElementById('qtab-meldingen');
+  const btnA = document.getElementById('qtab-archief');
+  btnM.style.color = tab==='meldingen'?'var(--ipb-navy)':'var(--ipb-text-muted)';
+  btnM.style.borderBottomColor = tab==='meldingen'?'var(--ipb-navy)':'transparent';
+  btnA.style.color = tab==='archief'?'var(--ipb-navy)':'var(--ipb-text-muted)';
+  btnA.style.borderBottomColor = tab==='archief'?'var(--ipb-navy)':'transparent';
+  renderQuality();
+};
+
+window.filterQuality = function(btn) {
+  document.querySelectorAll('.qfb').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  qualityFilter = btn.dataset.qf;
+  renderQuality();
+};
+
+function loadQuality() {
+  if (qualityUnsub) qualityUnsub();
+  qualityUnsub = onValue(ref(db,'quality'), function(snap) {
+    qualityData = snap.val() || {};
+    renderQuality();
+  });
+}
+
+function renderQuality() {
+  const all = Object.entries(qualityData);
+  const openItems = all.filter(([,v])=>v.status==='open'||v.status==='followup');
+  const closedItems = all.filter(([,v])=>v.status==='closed');
+  document.getElementById('q-open-cnt').textContent = openItems.length;
+
+  if (qualityTab === 'meldingen') {
+    const list = document.getElementById('quality-list');
+    list.innerHTML = '';
+    if (!openItems.length) { list.innerHTML='<div style="text-align:center;padding:32px;color:var(--ipb-text-light);">✅ Geen openstaande meldingen</div>'; return; }
+    openItems.sort((a,b)=>b[0].localeCompare(a[0])).forEach(([key,item])=>renderQCard(list,key,item));
+  } else {
+    const list = document.getElementById('quality-archive-list');
+    list.innerHTML = '';
+    const filtered = all.filter(([,v])=>qualityFilter==='all'||v.formType===qualityFilter);
+    if (!filtered.length) { list.innerHTML='<div style="text-align:center;padding:32px;color:var(--ipb-text-light);">Geen meldingen gevonden</div>'; return; }
+    filtered.sort((a,b)=>b[0].localeCompare(a[0])).forEach(([key,item])=>renderQCard(list,key,item));
+  }
+}
+
+function renderQCard(container, key, item) {
+  try {
+    const isCapa = item.formType === 'capa';
+    const card = document.createElement('div'); card.className = 'qcard';
+
+    const stCls = {open:'qst-open',followup:'qst-followup',closed:'qst-closed'};
+    const stLbl = {open:'🔴 Openstaand',followup:'🟠 In opvolging',closed:'🟢 Afgesloten'};
+    const title = isCapa
+      ? (item.desc||'CAPA').substring(0,60)+(item.desc&&item.desc.length>60?'...':'')
+      : (item.loc||'Knaagdier melding');
+
+    // Header
+    const head = document.createElement('div'); head.className = 'qcard-head';
+    head.onclick = function() { body.classList.toggle('open'); };
+
+    const typeSpan = document.createElement('span');
+    typeSpan.className = 'qcard-type ' + (isCapa?'capa':'knaag');
+    typeSpan.textContent = isCapa ? '📋 CAPA' : '🐭 Knaagdieren';
+
+    const titleSpan = document.createElement('span');
+    titleSpan.className = 'qcard-title';
+    titleSpan.textContent = title;
+
+    const stampSpan = document.createElement('span');
+    stampSpan.className = 'qcard-stamp';
+    stampSpan.textContent = item.createdAt || '';
+
+    const statusSpan = document.createElement('span');
+    statusSpan.className = 'qcard-status ' + (stCls[item.status]||'qst-open');
+    statusSpan.textContent = stLbl[item.status]||'Openstaand';
+
+    head.appendChild(typeSpan);
+    head.appendChild(titleSpan);
+    head.appendChild(stampSpan);
+    head.appendChild(statusSpan);
+
+    if (item.status !== 'closed') {
+      const closeBtn = document.createElement('button');
+      closeBtn.style.cssText = 'padding:3px 9px;border-radius:5px;border:1px solid #6ab04c;background:#eef7e9;color:#2a6018;cursor:pointer;font-size:11px;font-weight:600;margin-left:4px;';
+      closeBtn.textContent = '✓ Sluiten';
+      closeBtn.onclick = function(e) { e.stopPropagation(); closeQualityItem(key); };
+      head.appendChild(closeBtn);
+    }
+
+    const delBtn = document.createElement('button');
+    delBtn.style.cssText = 'padding:3px 9px;border-radius:5px;border:1px solid #e24b4a;background:#fef1f1;color:#8b1a1a;cursor:pointer;font-size:11px;margin-left:4px;';
+    delBtn.textContent = '🗑';
+    delBtn.onclick = function(e) { e.stopPropagation(); deleteQualityItem(key); };
+    head.appendChild(delBtn);
+
+    const chev = document.createElement('span');
+    chev.textContent = '▼'; chev.style.cssText = 'color:var(--ipb-text-muted);margin-left:4px;';
+    head.appendChild(chev);
+
+    // Body
+    const body = document.createElement('div'); body.className = 'qcard-body';
+    body.innerHTML = renderQBody(item);
+
+    card.appendChild(head);
+    card.appendChild(body);
+    container.appendChild(card);
+  } catch(e) { console.warn('QCard error', key, e); }
+}
+
+function renderQBody(item) {
+  const isCapa = item.formType === 'capa';
+  let html2 = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;">';
+  const f = (lbl,val) => val ? '<div class="qfield"><div class="qfield-lbl">'+lbl+'</div><div class="qfield-val">'+val+'</div></div>' : '';
+  if (isCapa) {
+    html2 += f('Melder', item.name) + f('Datum', item.date) + f('Klatch No.', item.klatch) + f('Prod. Order', item.order);
+    html2 += '</div>';
+    html2 += f('Non-conformiteit', item.desc);
+    html2 += f('Corrigerende / Preventieve Acties', item.actions);
+    html2 += f('Verantwoordelijke', item.resp);
+    html2 += f('Verificatie', item.verif);
+    html2 += f('Handtekening kwaliteit', item.sign);
+  } else {
+    const types = [];
+    if (item.muis) types.push('Muis gezien');
+    if (item.rat) types.push('Rat gezien');
+    if (item.meer) types.push('Meerdere knaagdieren (±'+( item.aantal||'?')+')');
+    if (item.sporen) types.push('Sporen');
+    html2 += f('Melder', item.name) + f('Afdeling', item.dept);
+    html2 += '</div>';
+    html2 += f('Type waarneming', types.join(', ')||'—');
+    html2 += f('Locatie', item.loc);
+    html2 += f('Beschrijving', item.desc);
+  }
+  html2 += f('Aangemeld door', item.name + ' — ' + ( item.createdAt||''));
+  return html2;
+}
+
+window.exportQualityExcel = function() {
+  const all = Object.entries(qualityData);
+  const filtered = qualityFilter==='all' ? all : all.filter(([,v])=>v.formType===qualityFilter);
+
+  if (!filtered.length) { showToast('Geen data om te exporteren'); return; }
+
+  // CAPA rows
+  const capaRows = [['CAPA-formulier (F-QC-022)'],
+    ['Datum aangemeld','Naam melder','Klatch No.','Prod. Order No.','Non-conformiteit','Corrigerende Acties','Verantwoordelijke','Verificatie','Handtekening kwaliteit','Status','Aangemeld op']
+  ];
+  // Knaagdieren rows
+  const knaagRows = [['Meldingsformulier Knaagdieren (F-QC-023)'],
+    ['Datum aangemeld','Naam melder','Afdeling','Muis','Rat','Meerdere (aantal)','Sporen','Locatie','Beschrijving','Status','Aangemeld op']
+  ];
+
+  let hasCapa = false, hasKnaag = false;
+
+  filtered.forEach(([,item]) => {
+    if (item.formType === 'capa') {
+      hasCapa = true;
+      capaRows.push([
+        item.date||'', item.name||'', item.klatch||'', item.order||'',
+        item.desc||'', item.actions||'', item.resp||'', item.verif||'',
+        item.sign||'', item.status||'', item.createdAt||''
+      ]);
+    } else {
+      hasKnaag = true;
+      const types = [];
+      if (item.muis) types.push('Muis');
+      if (item.rat) types.push('Rat');
+      knaagRows.push([
+        '', item.name||'', item.dept||'',
+        item.muis?'Ja':'', item.rat?'Ja':'',
+        item.meer?(item.aantal||'ja'):'', item.sporen?'Ja':'',
+        item.loc||'', item.desc||'', item.status||'', item.createdAt||''
+      ]);
+    }
+  });
+
+  const wb = window.XLSX.utils.book_new();
+
+  if (hasCapa || qualityFilter==='all') {
+    const ws1 = window.XLSX.utils.aoa_to_sheet(capaRows);
+    ws1['!cols'] = [{wch:14},{wch:20},{wch:12},{wch:14},{wch:40},{wch:40},{wch:20},{wch:25},{wch:20},{wch:14},{wch:18}];
+    window.XLSX.utils.book_append_sheet(wb, ws1, 'CAPA');
+  }
+  if (hasKnaag || qualityFilter==='all') {
+    const ws2 = window.XLSX.utils.aoa_to_sheet(knaagRows);
+    ws2['!cols'] = [{wch:14},{wch:20},{wch:16},{wch:8},{wch:8},{wch:14},{wch:8},{wch:30},{wch:30},{wch:14},{wch:18}];
+    window.XLSX.utils.book_append_sheet(wb, ws2, 'Knaagdieren');
+  }
+
+  const d = new Date();
+  const p2 = n=>String(n).padStart(2,'0');
+  const fname = 'IPB_Kwaliteit_'+d.getFullYear()+p2(d.getMonth()+1)+p2(d.getDate())+'.xlsx';
+  window.XLSX.writeFile(wb, fname);
+  showToast('Excel geëxporteerd: '+fname+' ✓');
+};
+
+window.closeQualityItem = function(key) {
+  update(ref(db,'quality/'+key), {status:'closed'});
+  showToast('Melding afgesloten ✓');
+};
+window.deleteQualityItem = function(key) {
+  if (window.confirm('Melding definitief verwijderen?')) {
+    remove(ref(db,'quality/'+key));
+    showToast('Melding verwijderd');
+  }
+};
+
+// FORMS
+window.openQualityChoice = function() {
+  document.getElementById('quality-choice-modal').style.display='flex';
+};
+window.closeQualityChoice = function() {
+  document.getElementById('quality-choice-modal').style.display='none';
+};
+window.openQualityForm = function(type) {
+  closeQualityChoice();
+  const d = new Date();
+  const p2 = n=>String(n).padStart(2,'0');
+  const today = d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());
+  if (type==='capa') {
+    document.getElementById('capa-date').value = today;
+    const chief=state.shift&&state.shift.chief?state.shift.chief:'';
+    document.getElementById('capa-name').value = chief;
+    document.getElementById('capa-modal').style.display='flex';
+  } else {
+    const chief=state.shift&&state.shift.chief?state.shift.chief:'';
+    document.getElementById('knaag-name').value = chief;
+    ['knaag-muis','knaag-rat','knaag-meer','knaag-sporen'].forEach(id=>{ const el=document.getElementById(id); if(el) el.checked=false; });
+    document.getElementById('knaag-aantal').value='';
+    document.getElementById('knaag-loc').value='';
+    document.getElementById('knaag-desc').value='';
+    document.getElementById('knaag-modal').style.display='flex';
+  }
+};
+window.closeCapaModal = function() { document.getElementById('capa-modal').style.display='none'; };
+window.closeKnaagModal = function() { document.getElementById('knaag-modal').style.display='none'; };
+
+window.saveCapaForm = function() {
+  const name = document.getElementById('capa-name').value.trim();
+  const desc = document.getElementById('capa-desc').value.trim();
+  const actions = document.getElementById('capa-actions').value.trim();
+  if (!name) { alert('Vul uw naam in'); return; }
+  if (!desc) { alert('Beschrijf de non-conformiteit'); return; }
+  if (!actions) { alert('Vul de corrigerende acties in'); return; }
+  push(ref(db,'quality'), {
+    formType:'capa', name, date:document.getElementById('capa-date').value,
+    klatch:document.getElementById('capa-klatch').value,
+    order:document.getElementById('capa-order').value,
+    desc, actions,
+    resp:document.getElementById('capa-resp').value,
+    verif:document.getElementById('capa-verif').value,
+    sign:document.getElementById('capa-sign').value,
+    status:document.getElementById('capa-status').value,
+    createdAt:ts(), createdBy:name
+  }).then(function() {
+    closeCapaModal();
+    showToast('CAPA-melding opgeslagen ✓');
+    showPage('quality', document.querySelector('[onclick*="quality"]'));
+    switchQTab('meldingen');
+  });
+};
+
+window.saveKnaagForm = function() {
+  const name = document.getElementById('knaag-name').value.trim();
+  const loc = document.getElementById('knaag-loc').value.trim();
+  const muis = document.getElementById('knaag-muis').checked;
+  const rat = document.getElementById('knaag-rat').checked;
+  const meer = document.getElementById('knaag-meer').checked;
+  const sporen = document.getElementById('knaag-sporen').checked;
+  if (!name) { alert('Vul uw naam in'); return; }
+  if (!loc) { alert('Vul de exacte locatie in'); return; }
+  if (!muis&&!rat&&!meer&&!sporen) { alert('Kies minstens één type waarneming'); return; }
+  push(ref(db,'quality'), {
+    formType:'knaagdieren', name,
+    dept:document.getElementById('knaag-dept').value,
+    muis, rat, meer, sporen,
+    aantal:document.getElementById('knaag-aantal').value||'',
+    loc, desc:document.getElementById('knaag-desc').value,
+    status:'open', createdAt:ts(), createdBy:name
+  }).then(function() {
+    closeKnaagModal();
+    showToast('Knaagdierenmelding opgeslagen ✓');
+    showPage('quality', document.querySelector('[onclick*="quality"]'));
+    switchQTab('meldingen');
+  });
+};
+
+loadQuality();
 
 // ===== REPLIES =====
 let currentReplyTarget = null;
