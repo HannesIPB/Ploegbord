@@ -150,14 +150,17 @@ textarea.fi{height:80px;resize:vertical;}
 .pf{text-align:center;padding:12px;font-size:11px;color:var(--ipb-text-light);border-top:1px solid var(--ipb-border);margin-top:8px;}
 .lines-card{background:var(--ipb-white);border-radius:var(--r);border:1px solid var(--ipb-border);box-shadow:var(--shadow-sm);overflow:hidden;margin-bottom:14px;}
 .lines-body{padding:10px 14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
-.line-toggle{display:flex;align-items:center;gap:8px;padding:6px 14px;border-radius:var(--rs);border:1.5px solid var(--ipb-border);background:var(--ipb-offwhite);cursor:pointer;transition:all .15s;user-select:none;}
+.line-toggle{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:var(--rs);border:2px solid var(--ipb-border);background:var(--ipb-offwhite);transition:all .15s;user-select:none;position:relative;}
 .line-toggle.active{background:var(--ipb-green-bg);border-color:var(--ipb-green);}
 .line-toggle.inactive{background:#fef1f1;border-color:#e24b4a;}
-.line-name{font-size:13px;font-weight:700;color:var(--ipb-navy);}
-.toggle-sw{width:36px;height:20px;border-radius:10px;background:#e24b4a;position:relative;transition:background .2s;flex-shrink:0;}
+.line-name{font-size:13px;font-weight:800;color:var(--ipb-navy);min-width:36px;}
+.line-op-status{font-size:11px;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.line-tl-btn{font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid rgba(0,0,0,.1);background:rgba(255,255,255,.7);cursor:pointer;color:var(--ipb-navy);font-weight:600;flex-shrink:0;}
+.line-tl-btn:hover{background:#fff;}
+.toggle-sw{width:34px;height:19px;border-radius:10px;background:#e24b4a;position:relative;transition:background .2s;flex-shrink:0;cursor:pointer;}
 .toggle-sw.on{background:var(--ipb-green);}
-.toggle-sw::after{content:'';position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);}
-.toggle-sw.on::after{left:19px;}
+.toggle-sw::after{content:'';position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);}
+.toggle-sw.on::after{left:17px;}
 .line-toggle:hover{transform:translateY(-1px);box-shadow:var(--shadow-md);}
 .line-name{font-size:14px;font-weight:800;color:var(--ipb-navy);}
 .line-status-lbl{font-size:11px;font-weight:600;margin-top:3px;}
@@ -992,15 +995,21 @@ window.takeSnapshot=function(auto=false){
     return out;
   }
   const reason=auto==='timeout'?'⚠️ Automatisch (geen ondertekening na 1u)':auto?'🤝 Automatisch (beide ondertekend)':'📸 Manueel';
-  push(ref(db,'archive/'+dept),{
-    timestamp:t,dept,deptLabel:DL[dept]||dept,
-    shift:d.shift||'',sn:d.sn||SN[d.shift]||'',
-    chief:d.chief||'',ho:d.ho||'',
-    so:d.so||null,si:d.si||null,
+  // Fetch today's operator history for all lines before saving
+  const snapDept = dept;
+  const snapLines = LINES_PER_DEPT[snapDept] || [];
+  const snapDate = (function(){const d=new Date();const p2=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());})();
+
+  // Build snapData without line history first
+  const snapData = {
+    timestamp:t, dept:snapDept, deptLabel:DL[snapDept]||snapDept,
+    shift:d.shift||'', sn:d.sn||SN[d.shift]||'',
+    chief:d.chief||'', ho:d.ho||'',
+    so:d.so||null, si:d.si||null,
     overnemerAfwezig:d.overnemerAfwezig||false,
     afwezigReden:d.afwezigReden||'',
     afwezigNota:d.afwezigNota||'',
-    auto,reason,
+    auto, reason,
     lines:opStatusData||{},
     safety:stripPhotos(state.safety)||{},
     machines:stripPhotos(state.machines)||{},
@@ -1010,8 +1019,31 @@ window.takeSnapshot=function(auto=false){
     general:stripPhotos(state.general)||{},
     td:state.td||{},
     incidents:stripPhotos(state.incidents)||{}
+  };
+
+  // Fetch operator history for all lines
+  const histPromises = snapLines.map(line =>
+    new Promise(resolve => {
+      onValue(ref(db,'operator-history/'+snapDept+'/'+line), snap => {
+        const all = snap.val() || {};
+        const todayEntries = Object.values(all).filter(e => e && e.date === snapDate && e.timeVal);
+        todayEntries.sort((a,b) => a.timeVal.localeCompare(b.timeVal));
+        resolve({line, entries: todayEntries});
+      }, {onlyOnce: true});
+    })
+  );
+
+  Promise.all(histPromises).then(results => {
+    const lineHistory = {};
+    results.forEach(r => { lineHistory[r.line] = r.entries; });
+    snapData.lineHistory = lineHistory;
+    push(ref(db,'archive/'+snapDept), snapData);
+    showToast(auto?'📸 Automatische snapshot opgeslagen ✓':'📸 Snapshot opgeslagen in archief ✓');
+  }).catch(() => {
+    // Save without history if fetch fails
+    push(ref(db,'archive/'+snapDept), snapData);
+    showToast(auto?'📸 Automatische snapshot opgeslagen ✓':'📸 Snapshot opgeslagen in archief ✓');
   });
-  showToast(auto?'📸 Automatische snapshot opgeslagen ✓':'📸 Snapshot opgeslagen in archief ✓');
 };
 
 // RENDERERS
@@ -1245,7 +1277,7 @@ function renderArch(){
     '<div class="sbody">'+
       sOD(snap)+
       sInc('Schadegeval / Arbeidsongeval ⚠️',snap.incidents)+
-      sLines('Actieve lijnen ⚡',snap.lines,snap.dept)+
+      sLines('Actieve lijnen ⚡',snap.lines,snap.dept,snap.lineHistory)+
       sSec('Veiligheid 🛡',snap.safety,v=>'<div class="sitem"><div><div style="font-weight:600;">'+v.label+'</div><div style="font-size:11px;color:var(--ipb-text-muted);">'+(v.sub||'')+'</div></div><span class="badge '+bc(v.status)+'" style="cursor:default">'+(SL[v.status]||v.status)+'</span></div>')+
       sSec('Machines ⚙',snap.machines,v=>'<div class="sitem"><div><div style="font-weight:600;">'+v.label+'</div><div style="font-size:11px;color:var(--ipb-text-muted);">'+(v.sub||'')+'</div></div><span class="badge '+bc(v.status)+'" style="cursor:default">'+(ML[v.status]||v.status)+'</span></div>')+
       sSec('Mensen 👤',snap.people,v=>'<div class="sitem"><div><div style="font-weight:600;">'+v.name+'</div><div style="font-size:11px;color:var(--ipb-text-muted);">'+(v.role||'')+'</div></div><span class="badge '+bc(v.status)+'" style="cursor:default">'+(PL[v.status]||v.status)+'</span></div>')+
@@ -1277,15 +1309,73 @@ function sOD(snap){
     '<div class="sodb" style="'+inBlockStyle+'"><div class="sodn">'+(snap.ho||'—')+'</div><div class="sodr">Overnemer</div><div class="sods" style="'+inStampStyle+'">'+inStampText+'</div></div>'+
   '</div>';
 }
-function sLines(title,data,snapDept){
-  if(!data||!Object.keys(data).length) return '';
+function sLines(title,data,snapDept,lineHistory){
   const deptLines={'P1':['L11','L12','L14','L15','L16','L17','L18','IDE'],'P4':['L41','L42'],'Converting':[]};
   const LINES=deptLines[snapDept]||deptLines['P1'];
-  const rows=LINES.map(function(l){
-    const active=data[l]===true;
-    return '<span style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;margin:2px;background:'+(active?'#eef7e9':'#fef1f1')+';color:'+(active?'#2a6018':'#8b1a1a')+';border:1px solid '+(active?'#6ab04c':'#e24b4a')+';">'+l+' '+(active?'●':'○')+'</span>';
-  }).join('');
-  return '<div class="ssec"><div class="sstitle">'+title+'</div><div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">'+rows+'</div></div>';
+  if(!LINES.length) return '';
+
+  const OP_COLORS={actief:'#6ab04c',vertraagd:'#f5a623',onderhoud:'#378ADD',panne:'#e24b4a',stilstand:'#8a9abf'};
+  const OP_LBLS={actief:'Actief',vertraagd:'Vertraagd',onderhoud:'Onderhoud',panne:'Panne',stilstand:'Geen productie'};
+  const p2=n=>String(n).padStart(2,'0');
+
+  let out='<div class="ssec"><div class="sstitle">'+title+'</div>';
+
+  // Current status badges
+  if(data&&Object.keys(data).length){
+    out+='<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">';
+    LINES.forEach(function(l){
+      const st=data[l]&&data[l].status;
+      const col=st?(OP_COLORS[st]||'#8a9abf'):'#8a9abf';
+      const lbl=st?(OP_LBLS[st]||st):'Geen melding';
+      const op=data[l]&&data[l].operator?data[l].operator:'';
+      out+='<span style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;margin:2px;background:'+col+'20;color:'+col+';border:1px solid '+col+';">'+l+' · '+lbl+(op?' ('+op+')':'')+'</span>';
+    });
+    out+='</div>';
+  }
+
+  // Timeline per line if history available
+  if(lineHistory){
+    out+='<div style="margin-top:10px;display:flex;flex-direction:column;gap:8px;">';
+    LINES.forEach(function(l){
+      const entries=(lineHistory[l]||[]).slice().sort((a,b)=>a.timeVal.localeCompare(b.timeVal));
+      out+='<div style="display:flex;align-items:center;gap:8px;">';
+      out+='<div style="font-size:11px;font-weight:700;color:#1a2e5a;min-width:36px;">'+l+'</div>';
+      out+='<div style="flex:1;height:18px;display:flex;border-radius:4px;overflow:hidden;border:1px solid #dde3f0;position:relative;">';
+      // Render 288 5-min slots
+      for(let slot=0;slot<288;slot++){
+        const sSlot=slot*5;
+        let st=null;
+        for(let i=entries.length-1;i>=0;i--){
+          const hm=entries[i].timeVal.split(':');
+          const em=parseInt(hm[0]||0)*60+parseInt(hm[1]||0);
+          if(em<=sSlot){st=entries[i].status;break;}
+        }
+        const bg=st?(OP_COLORS[st]||'#e8ecf5'):'#f4f6fb';
+        const bdr=slot>0&&slot%12===0?'border-left:1px solid rgba(255,255,255,.3);':'';
+        out+='<div style="flex:1;background:'+bg+';min-width:0;'+bdr+'"></div>';
+      }
+      out+='</div>';
+      // Hour labels under bar
+      out+='</div>';
+      // Mini legend for this line
+      const seen={};entries.forEach(e=>{if(e.status)seen[e.status]=true;});
+      if(Object.keys(seen).length){
+        out+='<div style="display:flex;gap:8px;margin-left:44px;flex-wrap:wrap;">';
+        Object.keys(seen).forEach(s=>{
+          out+='<span style="font-size:10px;color:'+(OP_COLORS[s]||'#8a9abf')+';">●&nbsp;'+(OP_LBLS[s]||s)+'</span>';
+        });
+        out+='</div>';
+      }
+    });
+    out+='</div>';
+    // Hour labels row
+    out+='<div style="display:flex;margin-left:44px;margin-top:2px;">';
+    for(let h=0;h<24;h++) out+='<div style="flex:1;font-size:8px;color:#8a9abf;text-align:left;min-width:0;">'+(h%4===0?p2(h):'')+'</div>';
+    out+='</div>';
+  }
+
+  out+='</div>';
+  return out;
 }
 
 function sSec(title,data,rowFn){
@@ -1399,13 +1489,49 @@ function renderLines() {
   const lines = getLines();
   lines.forEach(function(line) {
     const active = state.lines && state.lines[line] === true;
+    const opItem = opStatusData[line];
+    const opStatus = opItem ? opItem.status : null;
+    const opColor = opStatus ? (OP_STATUS_COLORS[opStatus]||'#8a9abf') : null;
+    const opLabel = opStatus ? (OP_STATUS_LABELS[opStatus]||opStatus) : 'Geen melding';
+
     const div = document.createElement('div');
     div.className = 'line-toggle ' + (active ? 'active' : 'inactive');
     div.id = 'lt-' + line;
-    div.innerHTML =
-      '<span class="line-name">' + line + '</span>' +
-      '<div class="toggle-sw' + (active ? ' on' : '') + '" id="tsw-' + line + '"></div>';
-    div.onclick = function() { toggleLine(line); };
+
+    // Toggle switch (left)
+    const sw = document.createElement('div');
+    sw.className = 'toggle-sw' + (active ? ' on' : '');
+    sw.id = 'tsw-' + line;
+    sw.title = active ? 'Actief — klik om uit te zetten' : 'Niet actief — klik om aan te zetten';
+    sw.onclick = function(e) { e.stopPropagation(); toggleLine(line); };
+
+    // Line name
+    const nm = document.createElement('span');
+    nm.className = 'line-name';
+    nm.textContent = line;
+
+    // Operator status dot + label
+    const opSpan = document.createElement('span');
+    opSpan.className = 'line-op-status';
+    if (opColor) {
+      opSpan.innerHTML = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+opColor+';margin-right:4px;flex-shrink:0;"></span>'
+        + '<span style="color:'+opColor+';">'+opLabel+'</span>'
+        + (opItem&&opItem.operator ? '<span style="color:#8a9abf;font-size:10px;"> — '+opItem.operator+'</span>' : '');
+    } else {
+      opSpan.style.color = '#b0bcd8';
+      opSpan.textContent = 'Geen melding';
+    }
+
+    // Timeline button
+    const tlBtn = document.createElement('button');
+    tlBtn.className = 'line-tl-btn';
+    tlBtn.textContent = '📊 Tijdslijn';
+    tlBtn.onclick = function(e) { e.stopPropagation(); openTimelineModal(line); };
+
+    div.appendChild(sw);
+    div.appendChild(nm);
+    div.appendChild(opSpan);
+    div.appendChild(tlBtn);
     body.appendChild(div);
   });
 }
@@ -1442,6 +1568,8 @@ function rebindLines() {
   });
   rebindOpStatus();
 }
+
+rebindLines();
 
 // ===== CONTROLE PLOEGCHEF =====
 let controleUnsub = null;
@@ -1739,6 +1867,96 @@ window.exportControleExcel = function() {
 };
 
 loadControle();
+
+window.openTimelineModal = function(line) {
+  document.getElementById('timeline-modal-title').textContent = 'Tijdslijn — ' + line;
+  const body = document.getElementById('timeline-modal-body');
+  body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--ipb-text-light);">Laden...</div>';
+  document.getElementById('timeline-modal-bg').style.display = 'flex';
+
+  const p2 = n => String(n).padStart(2,'0');
+  const today = (function(){ const d=new Date(); return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate()); })();
+
+  onValue(ref(db, 'operator-history/' + dept + '/' + line), function(snap) {
+    const now = new Date();
+    const nowMins = now.getHours()*60 + now.getMinutes();
+    const SLOT_MINS = 5;
+
+    let entries = [], lastKnown = null;
+    if (snap && snap.val()) {
+      Object.values(snap.val()).forEach(function(item) {
+        if (!item || !item.timeVal) return;
+        if (item.date === today) entries.push(item);
+        else if (!lastKnown || (item.date||'') > (lastKnown.date||'')) lastKnown = item;
+      });
+    }
+    entries.sort(function(a,b){
+      const am=a.timeVal.split(':'); const bm=b.timeVal.split(':');
+      return (parseInt(am[0])*60+parseInt(am[1])) - (parseInt(bm[0])*60+parseInt(bm[1]));
+    });
+    if (lastKnown && (entries.length===0 || entries[0].timeVal > '00:00'))
+      entries.unshift(Object.assign({}, lastKnown, {timeVal:'00:00', date:today, _carryover:true}));
+
+    const cur = opStatusData[line];
+    let h = '';
+    if (cur) {
+      const col = OP_STATUS_COLORS[cur.status]||'#8a9abf';
+      const lbl = OP_STATUS_LABELS[cur.status]||cur.status;
+      h += '<div style="padding:10px 12px;background:'+col+'20;border-radius:8px;border-left:4px solid '+col+';margin-bottom:14px;display:flex;align-items:center;gap:10px;">'
+         + '<div style="width:12px;height:12px;border-radius:50%;background:'+col+';flex-shrink:0;"></div>'
+         + '<div><div style="font-size:14px;font-weight:700;color:'+col+';">'+lbl+'</div>'
+         + '<div style="font-size:12px;color:var(--ipb-text-muted);">'+(cur.operator||'')+(cur.note?' · '+cur.note:'')+'</div></div>'
+         + '<div style="margin-left:auto;font-size:11px;color:var(--ipb-text-muted);">'+(cur.time||'')+'</div></div>';
+    }
+
+    // Hour labels
+    h += '<div style="display:flex;width:100%;margin-bottom:3px;">';
+    for (let i=0;i<24;i++) h += '<div style="flex:1;font-size:9px;color:#8a9abf;text-align:center;min-width:0;">'+(i%4===0||i===23?p2(i):'')+'</div>';
+    h += '</div>';
+
+    // 5-min bar
+    h += '<div style="position:relative;width:100%;height:44px;display:flex;border-radius:8px;overflow:hidden;border:1px solid #dde3f0;">';
+    for (let slot=0;slot<288;slot++) {
+      const sStart=slot*SLOT_MINS, sEnd=sStart+SLOT_MINS-1;
+      if (sStart>nowMins){h+='<div style="flex:1;background:#f0f2f7;opacity:.35;min-width:0;"></div>';continue;}
+      let st=null,opN='',opNo='';
+      for (let i=entries.length-1;i>=0;i--){
+        const hm=entries[i].timeVal.split(':'); const em=parseInt(hm[0]||0)*60+parseInt(hm[1]||0);
+        if(em<=sEnd){st=entries[i].status;opN=entries[i].operator||'';opNo=entries[i].note||'';break;}
+      }
+      const hh=Math.floor(sStart/60),mm=sStart%60;
+      const bg=st?(OP_STATUS_COLORS[st]||'#e8ecf5'):'#e8ecf5';
+      const bdr=slot>0&&slot%12===0?'border-left:1px solid rgba(255,255,255,.4);':'';
+      h+='<div style="flex:1;background:'+bg+';min-width:0;'+bdr+'" title="'+p2(hh)+':'+p2(mm)+' — '+(OP_STATUS_LABELS[st]||'Geen data')+(opN?' ('+opN+')':'')+'"></div>';
+    }
+    h+='<div style="position:absolute;top:0;bottom:0;left:'+(nowMins/1440*100).toFixed(2)+'%;width:2px;background:#e24b4a;z-index:10;"></div>';
+    h+='</div>';
+
+    // Legend
+    const seen={};entries.forEach(function(e){if(e.status)seen[e.status]=true;});
+    h+='<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">';
+    Object.keys(seen).forEach(function(s){h+='<div style="display:flex;align-items:center;gap:3px;font-size:11px;color:#5a6a8a;"><div style="width:10px;height:10px;border-radius:2px;background:'+(OP_STATUS_COLORS[s]||'#ccc')+'"></div>'+(OP_STATUS_LABELS[s]||s)+'</div>';});
+    h+='</div>';
+
+    // Meldingen
+    h+='<div style="font-size:11px;font-weight:700;color:var(--ipb-text-muted);text-transform:uppercase;letter-spacing:.08em;margin:12px 0 6px;">Meldingen vandaag</div>';
+    const todayE=entries.filter(function(e){return !e._carryover;});
+    if(!todayE.length){h+='<div style="text-align:center;padding:12px;color:var(--ipb-text-light);font-size:13px;">Nog geen meldingen vandaag</div>';}
+    else{[...todayE].reverse().forEach(function(item){
+      const col=OP_STATUS_COLORS[item.status]||'#8a9abf';
+      h+='<div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid #f0f2f7;">'
+        +'<div style="background:'+col+';color:#fff;font-size:11px;font-weight:700;padding:2px 7px;border-radius:20px;white-space:nowrap;">'+item.timeVal+'</div>'
+        +'<div style="flex:1;"><div style="font-size:13px;font-weight:600;color:'+col+';">'+(OP_STATUS_LABELS[item.status]||item.status)+'</div>'
+        +'<div style="font-size:11px;color:#8a9abf;">'+(item.operator||'')+(item.note?' · '+item.note:'')+'</div></div></div>';
+    });}
+
+    body.innerHTML = h;
+  }, {onlyOnce: true});
+};
+
+window.closeTimelineModal = function() {
+  document.getElementById('timeline-modal-bg').style.display = 'none';
+};
 
 // ===== KWALITEIT =====
 let qualityUnsub = null;
