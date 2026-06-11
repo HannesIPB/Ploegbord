@@ -149,10 +149,17 @@ textarea.fi{height:80px;resize:vertical;}
 @keyframes load{0%{width:0;margin-left:0;}50%{width:100%;}100%{width:0;margin-left:100%;}}
 .pf{text-align:center;padding:12px;font-size:11px;color:var(--ipb-text-light);border-top:1px solid var(--ipb-border);margin-top:8px;}
 .lines-card{background:var(--ipb-white);border-radius:var(--r);border:1px solid var(--ipb-border);box-shadow:var(--shadow-sm);overflow:hidden;margin-bottom:14px;}
-.lines-body{padding:10px 14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+.lines-body{padding:10px 14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px;}
 .line-toggle{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:var(--rs);border:2px solid var(--ipb-border);background:var(--ipb-offwhite);transition:all .15s;user-select:none;position:relative;}
-.line-toggle.active{background:var(--ipb-green-bg);border-color:var(--ipb-green);}
-.line-toggle.inactive{background:#fef1f1;border-color:#e24b4a;}
+/* Status-based line colors */
+.line-toggle.lst-productie{background:#e8f5e9;border-color:#388E3C;}
+.line-toggle.lst-problemen{background:#fff8e1;border-color:#F57F17;}
+.line-toggle.lst-overgang{background:#e3f2fd;border-color:#1565C0;}
+.line-toggle.lst-messen{background:#e3f2fd;border-color:#1565C0;}
+.line-toggle.lst-panne{background:#ffebee;border-color:#C62828;}
+.line-toggle.lst-geen{background:#f5f5f5;border-color:#999;}
+.line-toggle.lst-actief{background:#e8f5e9;border-color:#388E3C;}
+.line-toggle.lst-vertraagd{background:#fff8e1;border-color:#F57F17;}
 .line-name{font-size:13px;font-weight:800;color:var(--ipb-navy);min-width:36px;}
 .line-op-status{font-size:11px;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .line-tl-btn{font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid rgba(0,0,0,.1);background:rgba(255,255,255,.7);cursor:pointer;color:var(--ipb-navy);font-weight:600;flex-shrink:0;}
@@ -1467,8 +1474,18 @@ const LINES_PER_DEPT = {
 };
 
 // Operator status data - bewaard voor latere tijdslijn integratie
-const OP_STATUS_LABELS = {actief:'Actief',vertraagd:'Vertraagd',onderhoud:'Onderhoud',panne:'Panne',stilstand:'Geen productie'};
-const OP_STATUS_COLORS = {actief:'#6ab04c',vertraagd:'#f5a623',onderhoud:'#378ADD',panne:'#e24b4a',stilstand:'#8a9abf'};
+const OP_STATUS_LABELS = {
+  // Nieuwe statussen
+  productie:'Productie', problemen:'Problemen', overgang:'Overgang',
+  messen:'Nieuwe messen', panne:'Panne / Stilstand', geen:'Geen orders',
+  // Backward compat
+  actief:'Actief', vertraagd:'Vertraagd', onderhoud:'Onderhoud', stilstand:'Geen productie'
+};
+const OP_STATUS_COLORS = {
+  productie:'#388E3C', problemen:'#F57F17', overgang:'#1565C0',
+  messen:'#1565C0',    panne:'#C62828',     geen:'#666',
+  actief:'#388E3C', vertraagd:'#F57F17', onderhoud:'#1565C0', stilstand:'#666'
+};
 let opStatusData = {};
 
 function getLines() { return LINES_PER_DEPT[dept] || []; }
@@ -1483,55 +1500,106 @@ function initLines() {
   renderLines();
 }
 
+function buildMiniBar(line) {
+  const entries = opHistoryData[line] || [];
+  const now = new Date();
+  const nowMins = now.getHours()*60 + now.getMinutes();
+  const bar = document.createElement('div');
+  bar.style.cssText = 'display:flex;height:8px;border-radius:4px;overflow:hidden;margin-top:5px;width:100%;border:1px solid rgba(0,0,0,.1);';
+  // 48 segments of 30 min each
+  const SEGS = 48, SEG_MINS = 30;
+  for (let seg=0; seg<SEGS; seg++) {
+    const segStart = seg * SEG_MINS;
+    const segEnd = segStart + SEG_MINS - 1;
+    const block = document.createElement('div');
+    block.style.cssText = 'flex:1;min-width:0;';
+    if (segStart > nowMins) {
+      block.style.background = 'rgba(255,255,255,.2)';
+    } else {
+      let st = null;
+      for (let i=entries.length-1; i>=0; i--) {
+        const hm = entries[i].timeVal.split(':');
+        const em = parseInt(hm[0]||0)*60 + parseInt(hm[1]||0);
+        if (em <= segStart) { st = entries[i].status; break; }
+      }
+      block.style.background = st ? (OP_STATUS_COLORS[st]||'#8a9abf') : 'rgba(255,255,255,.15)';
+      if (seg>0 && seg%6===0) block.style.borderLeft = '1px solid rgba(255,255,255,.3)';
+    }
+    bar.appendChild(block);
+  }
+  // Current time marker
+  const pct = (nowMins/1440*100).toFixed(1);
+  const marker = document.createElement('div');
+  marker.style.cssText = 'position:absolute;top:0;bottom:0;left:'+pct+'%;width:1px;background:rgba(255,255,255,.9);z-index:2;pointer-events:none;';
+  bar.style.position = 'relative';
+  bar.appendChild(marker);
+  return bar;
+}
+
 function renderLines() {
   const body = document.getElementById('lines-body');
+  if (!body) return;
   body.innerHTML = '';
   const lines = getLines();
   lines.forEach(function(line) {
-    const active = state.lines && state.lines[line] === true;
     const opItem = opStatusData[line];
-    const opStatus = opItem ? opItem.status : null;
-    const opColor = opStatus ? (OP_STATUS_COLORS[opStatus]||'#8a9abf') : null;
-    const opLabel = opStatus ? (OP_STATUS_LABELS[opStatus]||opStatus) : 'Geen melding';
+    const st = opItem ? (opItem.status||'') : '';
+    const stColor = st ? (OP_STATUS_COLORS[st]||'#8a9abf') : '#8a9abf';
+    const stLabel = st ? (OP_STATUS_LABELS[st]||st) : 'Geen melding';
+    const opName = opItem && opItem.operator ? opItem.operator : '';
+    const opTime = opItem && opItem.time ? opItem.time : '';
 
     const div = document.createElement('div');
-    div.className = 'line-toggle ' + (active ? 'active' : 'inactive');
     div.id = 'lt-' + line;
+    div.style.cssText = 'border-radius:10px;border:2px solid '+stColor+';background:'+stColor+'18;padding:10px 12px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;';
+    div.onmouseenter = function(){ this.style.background=stColor+'30'; };
+    div.onmouseleave = function(){ this.style.background=stColor+'18'; };
 
-    // Toggle switch (left)
-    const sw = document.createElement('div');
-    sw.className = 'toggle-sw' + (active ? ' on' : '');
-    sw.id = 'tsw-' + line;
-    sw.title = active ? 'Actief — klik om uit te zetten' : 'Niet actief — klik om aan te zetten';
-    sw.onclick = function(e) { e.stopPropagation(); toggleLine(line); };
+    // Top row: line name + status badge
+    const topRow = document.createElement('div');
+    topRow.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:3px;';
 
-    // Line name
-    const nm = document.createElement('span');
-    nm.className = 'line-name';
-    nm.textContent = line;
+    const nameEl = document.createElement('span');
+    nameEl.style.cssText = 'font-size:15px;font-weight:800;color:#1a2e5a;';
+    nameEl.textContent = line;
 
-    // Operator status dot + label
-    const opSpan = document.createElement('span');
-    opSpan.className = 'line-op-status';
-    if (opColor) {
-      opSpan.innerHTML = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+opColor+';margin-right:4px;flex-shrink:0;"></span>'
-        + '<span style="color:'+opColor+';">'+opLabel+'</span>'
-        + (opItem&&opItem.operator ? '<span style="color:#8a9abf;font-size:10px;"> — '+opItem.operator+'</span>' : '');
-    } else {
-      opSpan.style.color = '#b0bcd8';
-      opSpan.textContent = 'Geen melding';
+    const badge = document.createElement('span');
+    badge.style.cssText = 'font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;background:'+stColor+';color:#fff;flex-shrink:0;';
+    badge.textContent = stLabel;
+
+    const tlBtn = document.createElement('button');
+    tlBtn.style.cssText = 'margin-left:auto;padding:2px 8px;border-radius:5px;border:1px solid rgba(0,0,0,.15);background:rgba(255,255,255,.7);cursor:pointer;color:#1a2e5a;font-size:10px;font-weight:600;flex-shrink:0;';
+    tlBtn.textContent = '📊';
+    tlBtn.title = 'Tijdslijn openen';
+    tlBtn.onclick = function(e){ e.stopPropagation(); openTimelineModal(line); };
+
+    topRow.appendChild(nameEl);
+    topRow.appendChild(badge);
+    topRow.appendChild(tlBtn);
+
+    // Operator + time
+    const opRow = document.createElement('div');
+    opRow.style.cssText = 'font-size:10px;color:#5a6a8a;margin-bottom:4px;';
+    opRow.textContent = opName ? opName + (opTime ? ' · ' + opTime : '') : 'Geen melding';
+
+    // Mini timeline
+    const miniBar = buildMiniBar(line);
+
+    // Hour labels for mini bar (just 00, 06, 12, 18, 24)
+    const lblRow = document.createElement('div');
+    lblRow.style.cssText = 'display:flex;margin-top:2px;';
+    for (let h=0; h<48; h++) {
+      const l = document.createElement('div');
+      l.style.cssText = 'flex:1;font-size:7px;color:rgba(90,106,138,.7);text-align:left;min-width:0;';
+      l.textContent = (h%12===0) ? String(h/2).padStart(2,'0') : '';
+      lblRow.appendChild(l);
     }
 
-    // Timeline button
-    const tlBtn = document.createElement('button');
-    tlBtn.className = 'line-tl-btn';
-    tlBtn.textContent = '📊 Tijdslijn';
-    tlBtn.onclick = function(e) { e.stopPropagation(); openTimelineModal(line); };
-
-    div.appendChild(sw);
-    div.appendChild(nm);
-    div.appendChild(opSpan);
-    div.appendChild(tlBtn);
+    div.appendChild(topRow);
+    div.appendChild(opRow);
+    div.appendChild(miniBar);
+    div.appendChild(lblRow);
+    div.onclick = function(){ openTimelineModal(line); };
     body.appendChild(div);
   });
 }
@@ -1552,11 +1620,39 @@ function applyLines(linesData) {
   });
 }
 
+let opHistoryData = {}; // line -> sorted entries array
+let opHistUnsubs = {};
+
 function rebindOpStatus() {
-  // Operator status data in achtergrond laden voor latere tijdslijn integratie
   if (opStatusUnsub) opStatusUnsub();
   opStatusUnsub = onValue(ref(db, 'operator-status/' + dept), function(snap) {
     opStatusData = snap.val() || {};
+    renderLines();
+  });
+  // Load history for each line for mini timeline
+  Object.values(opHistUnsubs).forEach(function(u){ try{u();}catch(e){} });
+  opHistUnsubs = {};
+  const p2 = n => String(n).padStart(2,'0');
+  const d = new Date();
+  const today = d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());
+  const lines = LINES_PER_DEPT[dept] || [];
+  lines.forEach(function(line) {
+    opHistUnsubs[line] = onValue(ref(db, 'operator-history/'+dept+'/'+line), function(snap) {
+      const all = snap.val() || {};
+      const entries = [];
+      let lastKnown = null;
+      Object.entries(all).forEach(function(pair) {
+        const item = pair[1];
+        if (!item||!item.timeVal) return;
+        if (item.date===today) entries.push(item);
+        else if (!lastKnown||(item.date||'')>(lastKnown.date||'')) lastKnown=item;
+      });
+      entries.sort((a,b)=>a.timeVal.localeCompare(b.timeVal));
+      if (lastKnown && (!entries.length||entries[0].timeVal>'00:00'))
+        entries.unshift(Object.assign({},lastKnown,{timeVal:'00:00',_carry:true}));
+      opHistoryData[line] = entries;
+      renderLines();
+    });
   });
 }
 
