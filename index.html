@@ -1639,8 +1639,19 @@ function renderLines() {
     }
     div.appendChild(miniBar);
     div.appendChild(lblRow);
-    div.onclick = function(){ openTimelineModal(line); };
+    div.onclick = function(){
+      if (dept==='P4') { toggleP4Input(line, div); }
+      else { openTimelineModal(line); }
+    };
     body.appendChild(div);
+
+    // For P4: add inline input panel
+    if (dept==='P4') {
+      const panel = document.createElement('div');
+      panel.id = 'p4-panel-'+line;
+      panel.style.cssText = 'display:none;background:#f4f6fb;border:2px solid '+stColor+';border-radius:10px;padding:14px;grid-column:1/-1;';
+      body.appendChild(panel);
+    }
   });
 }
 
@@ -1733,6 +1744,300 @@ rebindLines();
 
 // Herbereken de tijdslijn elke minuut (nu-marker en toekomstige segmenten bijwerken)
 setInterval(function() { renderLines(); }, 60000);
+
+
+// ===== P4 INLINE STATUS INGAVE =====
+var p4ActiveLine = null;
+var p4SelStatus = null;
+
+const P4_ST = {
+  productie: {l:'Productie',        c:'#388E3C', bg:'#6ab04c'},
+  problemen: {l:'Problemen',        c:'#F57F17', bg:'#f5a623'},
+  overgang:  {l:'Overgang',         c:'#1565C0', bg:'#378ADD'},
+  panne:     {l:'Panne / Stilstand',c:'#C62828', bg:'#e24b4a'},
+  geen:      {l:'Geen geplande orders', c:'#555', bg:'#8a9abf'},
+};
+const P4_ICONS = {productie:'🟢', problemen:'🟡', overgang:'🔵', panne:'🔴', geen:'⚫'};
+
+function toggleP4Input(line, cardDiv) {
+  const panel = document.getElementById('p4-panel-'+line);
+  if (!panel) return;
+  if (p4ActiveLine && p4ActiveLine !== line) {
+    // Close other open panel
+    const other = document.getElementById('p4-panel-'+p4ActiveLine);
+    if (other) { other.style.display='none'; other.innerHTML=''; }
+  }
+  if (panel.style.display === 'none' || !panel.style.display) {
+    p4ActiveLine = line;
+    p4SelStatus = null;
+    renderP4Panel(line, panel, cardDiv);
+    panel.style.display = 'block';
+  } else {
+    panel.style.display = 'none';
+    panel.innerHTML = '';
+    p4ActiveLine = null;
+  }
+}
+
+function renderP4Panel(line, panel, cardDiv) {
+  panel.innerHTML = '';
+  const p2 = n => String(n).padStart(2,'0');
+  const now = new Date();
+  const today = now.getFullYear()+'-'+p2(now.getMonth()+1)+'-'+p2(now.getDate());
+  const nowMins = now.getHours()*60 + now.getMinutes();
+
+  // Header: naam + tijdstip
+  const hdr = document.createElement('div');
+  hdr.style.cssText = 'display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center;';
+  hdr.innerHTML = '<span style="font-size:11px;font-weight:700;color:#1a2e5a;">🕐</span>';
+  const timeInp = document.createElement('input');
+  timeInp.type='time'; timeInp.id='p4-time-'+line;
+  timeInp.value=p2(now.getHours())+':'+p2(now.getMinutes());
+  timeInp.style.cssText='padding:5px 8px;border:1.5px solid #b0bcd8;border-radius:6px;font-size:13px;font-weight:700;width:90px;';
+  timeInp.onclick=function(e){e.stopPropagation();};
+  const nameInp = document.createElement('input');
+  nameInp.type='text'; nameInp.id='p4-name-'+line;
+  nameInp.placeholder='Naam ploegchef';
+  nameInp.value=(state.shift&&state.shift.chief)||'';
+  nameInp.style.cssText='flex:1;min-width:100px;padding:5px 8px;border:1.5px solid #b0bcd8;border-radius:6px;font-size:12px;';
+  nameInp.onclick=function(e){e.stopPropagation();};
+  const snelInp = document.createElement('input');
+  snelInp.type='number'; snelInp.id='p4-snelheid-'+line;
+  snelInp.placeholder='kg/h'; snelInp.min='0';
+  const cfg=lineConfigData[line]||{};
+  snelInp.value=cfg.snelheid||'';
+  snelInp.style.cssText='width:70px;padding:5px 8px;border:1.5px solid #b0bcd8;border-radius:6px;font-size:12px;';
+  snelInp.onclick=function(e){e.stopPropagation();};
+  hdr.appendChild(timeInp); hdr.appendChild(nameInp); hdr.appendChild(snelInp);
+  panel.appendChild(hdr);
+
+  // Timeline label row
+  const lblRow = document.createElement('div');
+  lblRow.style.cssText='display:flex;width:100%;margin-bottom:2px;';
+  for(let h=0;h<24;h++){
+    const l=document.createElement('div');
+    l.style.cssText='flex:1;font-size:7px;color:#8a9abf;text-align:left;min-width:0;pointer-events:none;';
+    l.textContent=(h%4===0)?p2(h):'';
+    lblRow.appendChild(l);
+  }
+  panel.appendChild(lblRow);
+
+  // Timeline bar (drag-enabled)
+  const barWrap = document.createElement('div');
+  barWrap.style.cssText='position:relative;width:100%;height:80px;border-radius:10px;overflow:hidden;border:2px solid #b0bcd8;cursor:crosshair;user-select:none;-webkit-user-select:none;margin-bottom:6px;box-shadow:0 2px 8px rgba(0,0,0,.1);';
+  panel.appendChild(barWrap);
+
+  // Drag hint
+  const hint = document.createElement('div');
+  hint.style.cssText='font-size:10px;color:#8a9abf;text-align:center;margin-bottom:8px;';
+  hint.textContent='Sleep over de balk om een periode aan te duiden';
+  panel.appendChild(hint);
+
+  // Status picker (hidden until drag)
+  const picker = document.createElement('div');
+  picker.id='p4-picker-'+line;
+  picker.style.cssText='display:none;';
+  panel.appendChild(picker);
+
+  // Note input
+  const noteInp = document.createElement('input');
+  noteInp.type='text'; noteInp.id='p4-note-'+line;
+  noteInp.placeholder='Opmerking (optioneel)';
+  noteInp.style.cssText='width:100%;padding:6px 8px;border:1.5px solid #b0bcd8;border-radius:6px;font-size:12px;box-sizing:border-box;margin-bottom:8px;display:none;';
+  noteInp.onclick=function(e){e.stopPropagation();};
+  panel.appendChild(noteInp);
+
+  // Save + Timeline buttons
+  const saveBtn = document.createElement('button');
+  saveBtn.id='p4-save-'+line;
+  saveBtn.style.cssText='width:100%;padding:8px;border:none;border-radius:7px;background:#1E3A6E;color:#fff;font-size:12px;font-weight:700;cursor:pointer;opacity:.4;pointer-events:none;display:none;margin-bottom:6px;';
+  saveBtn.textContent='✓ Opslaan';
+  saveBtn.onclick=function(e){e.stopPropagation();saveP4Status(line,panel);};
+  panel.appendChild(saveBtn);
+
+  const tlBtn2=document.createElement('button');
+  tlBtn2.style.cssText='width:100%;padding:6px;border:1px solid #b0bcd8;border-radius:7px;background:#fff;color:#1a2e5a;font-size:11px;cursor:pointer;';
+  tlBtn2.textContent='📊 Volledige tijdslijn';
+  tlBtn2.onclick=function(e){e.stopPropagation();openTimelineModal(line);};
+  panel.appendChild(tlBtn2);
+
+  // Load history and draw bar + attach drag
+  onValue(ref(db,'operator-history/P4/'+line), function(snap) {
+    const nd=new Date(); const nd_today=nd.getFullYear()+'-'+p2(nd.getMonth()+1)+'-'+p2(nd.getDate());
+    const all=snap.val()||{}; const entries=[]; let lastKnown=null;
+    Object.entries(all).forEach(function(pair){
+      const key2=pair[0], item=pair[1];
+      if(!item||!item.timeVal) return;
+      if(item.date===nd_today) entries.push(Object.assign({},item,{_key:key2}));
+      else if(!lastKnown||(item.date||'')>(lastKnown.date||'')) lastKnown=Object.assign({},item,{_key:key2});
+    });
+    entries.sort((a,b)=>a.timeVal.localeCompare(b.timeVal));
+    if(lastKnown&&(!entries.length||entries[0].timeVal>'00:00'))
+      entries.unshift(Object.assign({},lastKnown,{timeVal:'00:00',_carry:true}));
+    panel._entries=entries;
+
+    // Draw 288 slots
+    barWrap.innerHTML='';
+    const inner=document.createElement('div');
+    inner.style.cssText='display:flex;width:100%;height:100%;position:relative;';
+    const slots=[];
+    const curNowMins=nd.getHours()*60+nd.getMinutes();
+    for(let slot=0;slot<288;slot++){
+      const sStart=slot*5;
+      const block=document.createElement('div');
+      block.style.cssText='flex:1;min-width:0;cursor:'+(sStart>curNowMins?'default':'crosshair')+';';
+      if(sStart>curNowMins){
+        block.style.background='#f0f2f7'; block.style.opacity='.35';
+      } else {
+        let st=null;
+        for(let i=entries.length-1;i>=0;i--){
+          const hm=entries[i].timeVal.split(':');
+          const em=parseInt(hm[0]||0)*60+parseInt(hm[1]||0);
+          if(em<=sStart){st=entries[i].status;break;}
+        }
+        block.style.background=st?(OP_STATUS_COLORS[st]||'#e8ecf5'):'#e8ecf5';
+        if(slot>0&&slot%12===0) block.style.borderLeft='1px solid rgba(255,255,255,.3)';
+      }
+      slots.push(block); inner.appendChild(block);
+    }
+    // Now marker
+    const marker=document.createElement('div');
+    marker.style.cssText='position:absolute;top:0;bottom:0;left:'+(curNowMins/1440*100).toFixed(2)+'%;width:2px;background:#e24b4a;z-index:10;pointer-events:none;';
+    inner.appendChild(marker);
+    barWrap.appendChild(inner);
+    panel._slots=slots;
+
+    // Attach drag
+    attachP4Drag(inner, slots, line, entries, panel, curNowMins, timeInp, picker, saveBtn, noteInp);
+  },{onlyOnce:true});
+}
+
+function attachP4Drag(inner, slots, line, entries, panel, nowMins, timeInp, picker, saveBtn, noteInp) {
+  let dragStart=-1, dragEnd=-1, dragging=false;
+  const p2=n=>String(n).padStart(2,'0');
+
+  function slotFromX(e) {
+    const rect=inner.getBoundingClientRect();
+    const clientX=(e.touches&&e.touches[0])?e.touches[0].clientX:(e.changedTouches&&e.changedTouches[0])?e.changedTouches[0].clientX:e.clientX;
+    const pct=(clientX-rect.left)/rect.width;
+    return Math.max(0,Math.min(287,Math.floor(pct*288)));
+  }
+  function slotToTime(s){const m=s*5;return p2(Math.floor(m/60))+':'+p2(m%60);}
+  function highlight(){
+    const s=Math.min(dragStart,dragEnd), e=Math.max(dragStart,dragEnd);
+    slots.forEach(function(b,i){b.style.outline=(i>=s&&i<=e)?'2px solid rgba(30,58,110,.8)':'';});
+  }
+  function showPicker(s,e){
+    const startTime=slotToTime(s), endTime=slotToTime(e);
+    // Find status active at end (for restoration)
+    let prevAtEnd=null;
+    const sorted=entries.slice().sort((a,b)=>a.timeVal.localeCompare(b.timeVal));
+    const endMins=e*5;
+    for(let i=sorted.length-1;i>=0;i--){
+      const hm=sorted[i].timeVal.split(':');
+      const em=parseInt(hm[0]||0)*60+parseInt(hm[1]||0);
+      if(em<=endMins){prevAtEnd=sorted[i].status;break;}
+    }
+    panel._dragStart=s; panel._dragEnd=e; panel._prevAtEnd=prevAtEnd;
+    panel._startTime=startTime; panel._endTime=endTime;
+    // Set time input to drag start
+    timeInp.value=startTime;
+    // Build picker
+    picker.innerHTML='<div style="font-size:11px;font-weight:700;color:#1a2e5a;margin-bottom:6px;">Van '+startTime+' tot '+endTime+' — kies status:</div>';
+    const grid=document.createElement('div');
+    grid.style.cssText='display:grid;grid-template-columns:repeat(5,1fr);gap:6px;';
+    const allBtns=[];
+    Object.keys(P4_ST).forEach(function(k){
+      const st=P4_ST[k];
+      const btn=document.createElement('button');
+      btn.style.cssText='padding:7px 4px;border:2px solid '+st.bg+';background:'+st.bg+'22;border-radius:7px;cursor:pointer;font-size:11px;font-weight:700;color:'+st.c+';display:flex;align-items:center;gap:3px;justify-content:center;';
+      // geen button takes normal 1 column in 5-col grid
+      btn.innerHTML=(P4_ICONS[k]||'●')+' '+st.l;
+      btn.onclick=function(e2){
+        e2.stopPropagation();
+        panel._selStatus=k;
+        allBtns.forEach(function(b){b.style.outline='';b.style.transform='';});
+        btn.style.outline='3px solid #1E3A6E'; btn.style.transform='scale(1.03)';
+        saveBtn.style.opacity='1'; saveBtn.style.pointerEvents='auto';
+        saveBtn.style.display='block'; noteInp.style.display='block';
+      };
+      allBtns.push(btn); grid.appendChild(btn);
+    });
+    picker.appendChild(grid);
+    picker.style.cssText='display:block;background:#edf3fe;border-radius:8px;padding:10px;margin-bottom:8px;border:1px solid #1E3A6E44;';
+  }
+
+  inner.addEventListener('mousedown',function(e){
+    const s=slotFromX(e);
+    if(s*5>nowMins) return;
+    dragging=true; dragStart=s; dragEnd=s; highlight(); e.preventDefault();
+  });
+  inner.addEventListener('mousemove',function(e){
+    if(!dragging) return;
+    dragEnd=Math.min(slotFromX(e),Math.floor(nowMins/5)); highlight(); e.preventDefault();
+  });
+  function onUp(e){
+    if(!dragging) return; dragging=false;
+    const s=Math.min(dragStart,dragEnd), en=Math.max(dragStart,dragEnd);
+    slots.forEach(function(b){b.style.outline='';});
+    if(en-s>=1) showPicker(s,en); e.preventDefault();
+  }
+  inner.addEventListener('mouseup',onUp);
+  inner.addEventListener('mouseleave',onUp);
+  inner.addEventListener('touchstart',function(e){const s=slotFromX(e);if(s*5>nowMins)return;dragging=true;dragStart=s;dragEnd=s;highlight();e.preventDefault();},{passive:false});
+  inner.addEventListener('touchmove',function(e){if(!dragging)return;dragEnd=Math.min(slotFromX(e),Math.floor(nowMins/5));highlight();e.preventDefault();},{passive:false});
+  inner.addEventListener('touchend',onUp,{passive:false});
+}
+
+
+function saveP4Status(line, panel) {
+  const selStatus = panel._selStatus;
+  if (!selStatus) return;
+  const p2 = n => String(n).padStart(2,'0');
+  const now = new Date();
+  const today = now.getFullYear()+'-'+p2(now.getMonth()+1)+'-'+p2(now.getDate());
+  const startTime = panel._startTime || document.getElementById('p4-time-'+line).value || p2(now.getHours())+':'+p2(now.getMinutes());
+  const endTime = panel._endTime;
+  const opName = document.getElementById('p4-name-'+line).value.trim() || 'Ploegchef';
+  const note = document.getElementById('p4-note-'+line).value.trim();
+  const snelheid = document.getElementById('p4-snelheid-'+line).value.trim();
+
+  const histRef = ref(db,'operator-history/P4/'+line);
+  const endMins = panel._dragEnd ? panel._dragEnd*5 : -1;
+  const curNowMins = now.getHours()*60+now.getMinutes();
+
+  // Remove entries strictly between startTime and endTime (overlap cleanup)
+  const entries = panel._entries || [];
+  const toRemove = entries.filter(function(e){
+    return e._key && e.timeVal > startTime && e.timeVal < (endTime||'99:99');
+  });
+  const delPromises = toRemove.map(function(e){
+    return remove(ref(db,'operator-history/P4/'+line+'/'+e._key));
+  });
+
+  Promise.all(delPromises).then(function(){
+    // Save start entry
+    push(histRef, {timeVal:startTime, status:selStatus, operator:opName, date:today, note:note});
+
+    // Save end restoration entry (if not at current time and prev status known)
+    if (endTime && endMins >= 0 && endMins < curNowMins-5 && panel._prevAtEnd) {
+      push(histRef, {timeVal:endTime, status:panel._prevAtEnd, operator:opName, date:today, note:'Einde periode'});
+    }
+
+    // Update current status
+    set(ref(db,'operator-status/P4/'+line), {status:selStatus, operator:opName, time:startTime, date:today});
+  });
+
+  // Save snelheid
+  if (snelheid) {
+    const stamp=p2(now.getDate())+'/'+p2(now.getMonth()+1)+'/'+now.getFullYear()+' '+p2(now.getHours())+':'+p2(now.getMinutes());
+    update(ref(db,'operator-line-config/P4/'+line), {snelheid, snelheid_ts:stamp});
+  }
+
+  panel.style.display='none'; panel.innerHTML='';
+  p4ActiveLine=null; p4SelStatus=null;
+  showToast('Status '+line+' opgeslagen ✓');
+}
 
 // ===== CONTROLE PLOEGCHEF =====
 let controleUnsub = null;
