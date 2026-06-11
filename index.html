@@ -1586,12 +1586,24 @@ function renderLines() {
     topRow.appendChild(badge);
     topRow.appendChild(tlBtn);
 
-    // Operator + time + snelheid
+    // Operator + time
     const opRow = document.createElement('div');
-    opRow.style.cssText = 'font-size:10px;color:#5a6a8a;margin-bottom:4px;';
+    opRow.style.cssText = 'font-size:10px;color:#5a6a8a;margin-bottom:5px;';
+    opRow.textContent = opName ? opName + (opTime ? ' · ' + opTime : '') : 'Geen melding';
+
+    // Output extruder — prominent weergegeven, standaard 0
     const cfg = lineConfigData[line] || {};
-    const snelheidTxt = cfg.snelheid ? ' · ' + cfg.snelheid + ' kg/h' : '';
-    opRow.textContent = opName ? opName + (opTime ? ' · ' + opTime : '') + snelheidTxt : (snelheidTxt ? snelheidTxt.replace(' · ','') : 'Geen melding');
+    const snelheid = cfg.snelheid || '0';
+    const kgRow = document.createElement('div');
+    kgRow.style.cssText = 'display:flex;align-items:baseline;gap:4px;margin-bottom:5px;';
+    const kgVal = document.createElement('span');
+    kgVal.style.cssText = 'font-size:18px;font-weight:800;color:' + (cfg.snelheid ? stColor : '#b0bcd8') + ';line-height:1;';
+    kgVal.textContent = snelheid;
+    const kgUnit = document.createElement('span');
+    kgUnit.style.cssText = 'font-size:10px;font-weight:600;color:#8a9abf;';
+    kgUnit.textContent = 'kg/h';
+    kgRow.appendChild(kgVal);
+    kgRow.appendChild(kgUnit);
 
     // Mini timeline
     const miniBar = buildMiniBar(line);
@@ -1608,6 +1620,23 @@ function renderLines() {
 
     div.appendChild(topRow);
     div.appendChild(opRow);
+    if (line === 'IDE') {
+      const ideCfg = ideConfigData || {};
+      const toerental = ideCfg.toerental || '0';
+      const ideRow = document.createElement('div');
+      ideRow.style.cssText = 'display:flex;align-items:baseline;gap:4px;margin-bottom:5px;';
+      const ideVal = document.createElement('span');
+      ideVal.style.cssText = 'font-size:18px;font-weight:800;color:' + (ideCfg.toerental ? stColor : '#b0bcd8') + ';line-height:1;';
+      ideVal.textContent = toerental;
+      const ideUnit = document.createElement('span');
+      ideUnit.style.cssText = 'font-size:10px;font-weight:600;color:#8a9abf;';
+      ideUnit.textContent = 'rpm';
+      ideRow.appendChild(ideVal);
+      ideRow.appendChild(ideUnit);
+      div.appendChild(ideRow);
+    } else {
+      div.appendChild(kgRow);
+    }
     div.appendChild(miniBar);
     div.appendChild(lblRow);
     div.onclick = function(){ openTimelineModal(line); };
@@ -1635,6 +1664,8 @@ let opHistoryData = {}; // line -> sorted entries array
 let opHistUnsubs = {};
 let lineConfigData = {}; // line -> {snelheid, snelheid_ts}
 let lineConfigUnsubs = {};
+let ideConfigData = {}; // IDE config {toerental, materiaal, output, filterwissel}
+let ideConfigUnsub = null;
 
 function rebindOpStatus() {
   if (opStatusUnsub) opStatusUnsub();
@@ -1648,6 +1679,13 @@ function rebindOpStatus() {
   const p2 = n => String(n).padStart(2,'0');
   const lines = LINES_PER_DEPT[dept] || [];
   // today calculated fresh inside each callback to handle midnight crossover
+  // Load IDE config
+  if (ideConfigUnsub) try{ideConfigUnsub();}catch(e){}
+  ideConfigUnsub = onValue(ref(db,'operator-ide-config/'+dept), function(snap) {
+    ideConfigData = snap.val() || {};
+    renderLines();
+  });
+
   // Load line config (snelheid extruder)
   Object.values(lineConfigUnsubs).forEach(function(u){ try{u();}catch(e){} });
   lineConfigUnsubs = {};
