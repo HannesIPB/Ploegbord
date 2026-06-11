@@ -803,18 +803,27 @@ let archFilter='all', unsubs=[], archUnsub=null, snapTimer=null;
 
 const p2=n=>String(n).padStart(2,'0');
 function ts(){const d=new Date();return p2(d.getDate())+'/'+p2(d.getMonth()+1)+'/'+d.getFullYear()+' '+p2(d.getHours())+':'+p2(d.getMinutes());}
-function mkStamp(item){
-  if(!item.by&&!item.time) return '';
-  // Build display: show by + full timestamp (date + time)
-  var timeDisplay = item.time || '';
-  // If time looks like only HH:MM (no date), add today's date for display
-  // ts() format: DD/MM/YYYY HH:MM
-  // tt() format: HH:MM (old entries)
+
+// Haal de echte aanmaaktijd uit de Firebase push-sleutel (server-gegenereerd, altijd correct)
+function pushKeyToTime(key){
+  if(!key||key.length<8) return null;
+  const CHARS='-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz';
+  let ms=0;
+  for(let i=0;i<8;i++) ms=ms*64+CHARS.indexOf(key[i]);
+  const d=new Date(ms);
+  return p2(d.getDate())+'/'+p2(d.getMonth()+1)+'/'+d.getFullYear()+' '+p2(d.getHours())+':'+p2(d.getMinutes());
+}
+function mkStamp(item, key){
+  if(!item.by&&!item.time&&!key) return '';
+  // Gebruik push-sleutel tijd (server-gegenereerd) als die beschikbaar is
+  // Dit is altijd correct, ook als de klok van het toestel verkeerd stond
+  var timeDisplay = (key ? pushKeyToTime(key) : null) || item.time || '';
+  // Oude entries met enkel HH:MM: datum toevoegen
   var isFullTs = timeDisplay.includes('/');
   if (!isFullTs && timeDisplay) {
     var d=new Date();
-    var p2=function(n){return String(n).padStart(2,'0');};
-    timeDisplay = p2(d.getDate())+'/'+p2(d.getMonth()+1)+'/'+d.getFullYear()+' '+timeDisplay;
+    var p2fn=function(n){return String(n).padStart(2,'0');};
+    timeDisplay = p2fn(d.getDate())+'/'+p2fn(d.getMonth()+1)+'/'+d.getFullYear()+' '+timeDisplay;
   }
   return '<div class="stamp">'+
     (item.by?'<span class="stamp-by">'+item.by+'</span>':'')+
@@ -1061,7 +1070,7 @@ const SC=['ok','warn','danger'],MC=['ok','warn','danger','off'],PC=['ok','warn',
 
 function rSafety(key,item){
   const row=document.createElement('div');row.className='sr';row.id='i-'+key;
-  const l=document.createElement('div');l.innerHTML='<div class="sl">'+item.label+'</div><div class="ss">'+(item.sub||'')+'</div>'+mkStamp(item);
+  const l=document.createElement('div');l.innerHTML='<div class="sl">'+item.label+'</div><div class="ss">'+(item.sub||'')+'</div>'+mkStamp(item,key);
   const r=document.createElement('div');r.className='srr';
   const b=document.createElement('span');b.className='badge '+bc(item.status);b.textContent=SL[item.status]||item.status;b.title='Klik om te wijzigen';
   b.onclick=()=>{const n=SC[(SC.indexOf(item.status)+1)%SC.length];update(ref(db,dept+'/safety/'+key),{status:n});};
@@ -1070,7 +1079,7 @@ function rSafety(key,item){
 }
 function rMachine(key,item){
   const row=document.createElement('div');row.className='sr';row.id='i-'+key;
-  const l=document.createElement('div');l.innerHTML='<div class="sl">'+item.label+'</div><div class="ss">'+(item.sub||'')+'</div>'+mkStamp(item);
+  const l=document.createElement('div');l.innerHTML='<div class="sl">'+item.label+'</div><div class="ss">'+(item.sub||'')+'</div>'+mkStamp(item,key);
   const r=document.createElement('div');r.className='srr';
   const b=document.createElement('span');b.className='badge '+bc(item.status);b.textContent=ML[item.status]||item.status;b.title='Klik om te wijzigen';
   b.onclick=()=>{const n=MC[(MC.indexOf(item.status)+1)%MC.length];update(ref(db,dept+'/machines/'+key),{status:n});};
@@ -1080,7 +1089,7 @@ function rMachine(key,item){
 function rPerson(key,item){
   const row=document.createElement('div');row.className='pr';row.id='i-'+key;
   const a=document.createElement('div');a.className='av '+gav(item.name);a.textContent=ini(item.name);
-  const info=document.createElement('div');info.style.flex='1';info.innerHTML='<div class="pn">'+item.name+'</div><div class="pr2">'+(item.role||'')+'</div>'+(item.note?'<div style="font-size:11px;color:var(--ipb-text-muted);margin-top:2px;font-style:italic;">'+item.note+'</div>':'')+mkStamp(item);
+  const info=document.createElement('div');info.style.flex='1';info.innerHTML='<div class="pn">'+item.name+'</div><div class="pr2">'+(item.role||'')+'</div>'+(item.note?'<div style="font-size:11px;color:var(--ipb-text-muted);margin-top:2px;font-style:italic;">'+item.note+'</div>':'')+mkStamp(item,key);
   const r=document.createElement('div');r.className='srr';
   const b=document.createElement('span');b.className='badge '+bc(item.status);b.textContent=PL[item.status]||item.status;b.title='Klik om te wijzigen';
   b.onclick=()=>{const n=PC[(PC.indexOf(item.status)+1)%PC.length];update(ref(db,dept+'/people/'+key),{status:n});};
@@ -1091,7 +1100,7 @@ const DC={planning:{cls:'n-planning',chip:'cp',label:'Planning'},quality:{cls:'n
 function rDept(key,item){
   const c=DC[item.dept]||DC.general;
   const el=document.createElement('div');el.className='note '+c.cls;el.id='i-'+key;
-  el.innerHTML='<div class="nm"><span class="chip '+c.chip+'">'+c.label+'</span><span>'+(item.time||'')+'</span></div><div class="nt" style="padding-right:24px;">'+(item.text||'')+'</div>'+mkStamp(item);
+  el.innerHTML='<div class="nm"><span class="chip '+c.chip+'">'+c.label+'</span><span>'+(item.time||'')+'</span></div><div class="nt" style="padding-right:24px;">'+(item.text||'')+'</div>'+mkStamp(item,key);
   el.appendChild(db2(dept+'/dept/'+key));addReplySection(el,'dept',key,item.replies,false);
   // Photo button
   const pb=document.createElement('button');pb.className='photo-btn';pb.textContent='📷';pb.style.marginTop='6px';
@@ -1104,13 +1113,13 @@ function rEsc(key,item){
   const c=EC[item.prio]||EC.info;
   const tl=item.to==='colleague'?'→ Collega ploegchef':'→ Afdelingshoofd / Directie';
   const row=document.createElement('div');row.className='er';row.id='i-'+key;
-  row.innerHTML='<div class="ei '+c.cls+'">'+c.ico+'</div><div style="flex:1"><div class="et">'+(item.label||'')+'</div><div class="ed">'+(item.detail||'')+'</div><div class="eto">'+tl+'</div>'+mkStamp(item)+'</div>';
+  row.innerHTML='<div class="ei '+c.cls+'">'+c.ico+'</div><div style="flex:1"><div class="et">'+(item.label||'')+'</div><div class="ed">'+(item.detail||'')+'</div><div class="eto">'+tl+'</div>'+mkStamp(item,key)+'</div>';
   row.appendChild(db2(dept+'/escalations/'+key));
   addPhotoToRow(row,'escalations',key,item.photo);addReplySection(row,'escalations',key,item.replies,false);return row;
 }
 function rGen(key,item){
   const el=document.createElement('div');el.className='note';el.id='i-'+key;
-  el.innerHTML='<div class="nm"><strong style="color:var(--ipb-navy)">'+(item.cat||'')+'</strong><span>'+(item.time||'')+'</span></div><div class="nt" style="padding-right:24px;">'+(item.text||'')+'</div>'+mkStamp(item);
+  el.innerHTML='<div class="nm"><strong style="color:var(--ipb-navy)">'+(item.cat||'')+'</strong><span>'+(item.time||'')+'</span></div><div class="nt" style="padding-right:24px;">'+(item.text||'')+'</div>'+mkStamp(item,key);
   el.appendChild(db2(dept+'/general/'+key));addReplySection(el,'general',key,item.replies,false);
   const pb=document.createElement('button');pb.className='photo-btn';pb.textContent='📷';pb.style.marginTop='6px';
   pb.onclick=function(){openPhotoModal('general',key);};el.appendChild(pb);
@@ -1577,10 +1586,12 @@ function renderLines() {
     topRow.appendChild(badge);
     topRow.appendChild(tlBtn);
 
-    // Operator + time
+    // Operator + time + snelheid
     const opRow = document.createElement('div');
     opRow.style.cssText = 'font-size:10px;color:#5a6a8a;margin-bottom:4px;';
-    opRow.textContent = opName ? opName + (opTime ? ' · ' + opTime : '') : 'Geen melding';
+    const cfg = lineConfigData[line] || {};
+    const snelheidTxt = cfg.snelheid ? ' · ' + cfg.snelheid + ' kg/h' : '';
+    opRow.textContent = opName ? opName + (opTime ? ' · ' + opTime : '') + snelheidTxt : (snelheidTxt ? snelheidTxt.replace(' · ','') : 'Geen melding');
 
     // Mini timeline
     const miniBar = buildMiniBar(line);
@@ -1622,6 +1633,8 @@ function applyLines(linesData) {
 
 let opHistoryData = {}; // line -> sorted entries array
 let opHistUnsubs = {};
+let lineConfigData = {}; // line -> {snelheid, snelheid_ts}
+let lineConfigUnsubs = {};
 
 function rebindOpStatus() {
   if (opStatusUnsub) opStatusUnsub();
@@ -1633,14 +1646,27 @@ function rebindOpStatus() {
   Object.values(opHistUnsubs).forEach(function(u){ try{u();}catch(e){} });
   opHistUnsubs = {};
   const p2 = n => String(n).padStart(2,'0');
-  const d = new Date();
-  const today = d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());
   const lines = LINES_PER_DEPT[dept] || [];
+  // today calculated fresh inside each callback to handle midnight crossover
+  // Load line config (snelheid extruder)
+  Object.values(lineConfigUnsubs).forEach(function(u){ try{u();}catch(e){} });
+  lineConfigUnsubs = {};
+  lines.forEach(function(line) {
+    if (!line.startsWith('IDE')) {
+      lineConfigUnsubs[line] = onValue(ref(db,'operator-line-config/'+dept+'/'+line), function(snap) {
+        lineConfigData[line] = snap.val() || {};
+        renderLines();
+      });
+    }
+  });
+
   lines.forEach(function(line) {
     opHistUnsubs[line] = onValue(ref(db, 'operator-history/'+dept+'/'+line), function(snap) {
       const all = snap.val() || {};
       const entries = [];
       let lastKnown = null;
+      const nd2=new Date(),p22=n=>String(n).padStart(2,'0');
+      const today=nd2.getFullYear()+'-'+p22(nd2.getMonth()+1)+'-'+p22(nd2.getDate());
       Object.entries(all).forEach(function(pair) {
         const item = pair[1];
         if (!item||!item.timeVal) return;
@@ -1666,6 +1692,9 @@ function rebindLines() {
 }
 
 rebindLines();
+
+// Herbereken de tijdslijn elke minuut (nu-marker en toekomstige segmenten bijwerken)
+setInterval(function() { renderLines(); }, 60000);
 
 // ===== CONTROLE PLOEGCHEF =====
 let controleUnsub = null;
@@ -2396,7 +2425,8 @@ function addReplySection(el, collection, key, replies, isGlobal) {
     Object.entries(replies).sort(function(a,b){return a[0].localeCompare(b[0]);}).forEach(function(entry) {
       var rKey = entry[0], r = entry[1];
       var item = document.createElement('div'); item.className = 'reply-item';
-      item.innerHTML = '<div class="reply-meta"><strong>' + (r.name||'—') + '</strong><span>' + (r.time||'') + '</span></div><div class="reply-text">' + (r.text||'') + '</div>';
+      var rTime = pushKeyToTime(rKey) || r.time || '';
+      item.innerHTML = '<div class="reply-meta"><strong>' + (r.name||'—') + '</strong><span>' + rTime + '</span></div><div class="reply-text">' + (r.text||'') + '</div>';
       var delR = document.createElement('button'); delR.className = 'reply-del'; delR.innerHTML = '&#128465;'; delR.title = 'Verwijderen';
       var rPath = (isGlobal ? collection : dept+'/'+collection) + '/' + key + '/replies/' + rKey;
       delR.onclick = function(e) { e.stopPropagation(); remove(ref(db, rPath)); };
