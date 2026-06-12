@@ -1038,13 +1038,18 @@ window.takeSnapshot=function(auto=false){
   };
 
   // Fetch operator history for all lines
+  const cutoffMs = Date.now() - 25 * 3600000; // 25u terug
   const histPromises = snapLines.map(line =>
     new Promise(resolve => {
       onValue(ref(db,'operator-history/'+snapDept+'/'+line), snap => {
         const all = snap.val() || {};
-        const todayEntries = Object.values(all).filter(e => e && e.date === snapDate && e.timeVal);
-        todayEntries.sort((a,b) => a.timeVal.localeCompare(b.timeVal));
-        resolve({line, entries: todayEntries});
+        // Neem alle entries van de laatste 25 uur (over middernacht heen)
+        const recentEntries = Object.entries(all)
+          .map(([k,v]) => v ? Object.assign({},v,{_key:k}) : null)
+          .filter(e => e && e.date && e.timeVal)
+          .filter(e => entryToMs(e) >= cutoffMs)
+          .sort((a,b) => entryToMs(a) - entryToMs(b));
+        resolve({line, entries: recentEntries});
       }, {onlyOnce: true});
     })
   );
@@ -1293,7 +1298,13 @@ function renderArch(){
     '<div class="sbody">'+
       sOD(snap)+
       sInc('Schadegeval / Arbeidsongeval ⚠️',snap.incidents)+
-      sLines('Actieve lijnen ⚡',snap.lines,snap.dept,snap.lineHistory)+
+      sLines('Actieve lijnen ⚡',snap.lines,snap.dept,snap.lineHistory,(function(){
+        // Convert snap.timestamp (DD/MM/YYYY HH:MM) to ms
+        if(!snap.timestamp) return null;
+        const p=snap.timestamp.split(/[/ :]/);
+        if(p.length<5) return null;
+        return new Date(+p[2],+p[1]-1,+p[0],+p[3],+p[4],0).getTime();
+      })())+
       sSec('Veiligheid 🛡',snap.safety,v=>'<div class="sitem"><div><div style="font-weight:600;">'+v.label+'</div><div style="font-size:11px;color:var(--ipb-text-muted);">'+(v.sub||'')+'</div></div><span class="badge '+bc(v.status)+'" style="cursor:default">'+(SL[v.status]||v.status)+'</span></div>')+
       sSec('Machines ⚙',snap.machines,v=>'<div class="sitem"><div><div style="font-weight:600;">'+v.label+'</div><div style="font-size:11px;color:var(--ipb-text-muted);">'+(v.sub||'')+'</div></div><span class="badge '+bc(v.status)+'" style="cursor:default">'+(ML[v.status]||v.status)+'</span></div>')+
       sSec('Mensen 👤',snap.people,v=>'<div class="sitem"><div><div style="font-weight:600;">'+v.name+'</div><div style="font-size:11px;color:var(--ipb-text-muted);">'+(v.role||'')+'</div></div><span class="badge '+bc(v.status)+'" style="cursor:default">'+(PL[v.status]||v.status)+'</span></div>')+
@@ -1325,13 +1336,23 @@ function sOD(snap){
     '<div class="sodb" style="'+inBlockStyle+'"><div class="sodn">'+(snap.ho||'—')+'</div><div class="sodr">Overnemer</div><div class="sods" style="'+inStampStyle+'">'+inStampText+'</div></div>'+
   '</div>';
 }
-function sLines(title,data,snapDept,lineHistory){
+function sLines(title,data,snapDept,lineHistory,snapMs){
   const deptLines={'P1':['L11','L12','L14','L15','L16','L17','L18','IDE'],'P4':['L41','L42'],'Converting':[]};
   const LINES=deptLines[snapDept]||deptLines['P1'];
   if(!LINES.length) return '';
 
-  const OP_COLORS={actief:'#6ab04c',vertraagd:'#f5a623',onderhoud:'#378ADD',panne:'#e24b4a',stilstand:'#8a9abf'};
-  const OP_LBLS={actief:'Actief',vertraagd:'Vertraagd',onderhoud:'Onderhoud',panne:'Panne',stilstand:'Geen productie'};
+  const OP_COLORS={
+    // Nieuwe statussen
+    productie:'#6ab04c', problemen:'#f5a623', overgang:'#378ADD',
+    messen:'#378ADD',    panne:'#e24b4a',     geen:'#8a9abf',
+    // Backward compat
+    actief:'#6ab04c', vertraagd:'#f5a623', onderhoud:'#378ADD', stilstand:'#8a9abf'
+  };
+  const OP_LBLS={
+    productie:'Productie', problemen:'Problemen', overgang:'Overgang',
+    messen:'Nieuwe messen', panne:'Panne/Stilstand', geen:'Geen orders',
+    actief:'Actief', vertraagd:'Vertraagd', onderhoud:'Onderhoud', stilstand:'Geen productie'
+  };
   const p2=n=>String(n).padStart(2,'0');
 
   let out='<div class="ssec"><div class="sstitle">'+title+'</div>';
@@ -1353,28 +1374,52 @@ function sLines(title,data,snapDept,lineHistory){
   if(lineHistory){
     out+='<div style="margin-top:10px;display:flex;flex-direction:column;gap:8px;">';
     LINES.forEach(function(l){
-      const entries=(lineHistory[l]||[]).slice().sort((a,b)=>a.timeVal.localeCompare(b.timeVal));
+      // Bereken ms voor elke entry
+      const rawEntries = (lineHistory[l]||[]).map(function(e){
+        const ms = entryToMs(e);
+        return ms ? Object.assign({},e,{_ms:ms}) : null;
+      }).filter(Boolean).sort((a,b)=>a._ms-b._ms);
+
+      // Venster gecentreerd op snapshot-tijdstip (14u voor, 4u na)
+      const snapMsVal = snapMs || Date.now();
+      const winStart = snapMsVal - TL_PAST_H*3600000;
+      const winEnd   = snapMsVal + TL_FUT_H*3600000;
+      const winTot   = TL_TOTAL_H*3600000;
+      const slotDur  = TL_SLOT_MINS*60000;
+      const TSLOTS   = TL_SLOTS;
+
+      // Carry-over: zoek laatste entry vóór venster
+      let carryOver = null;
+      rawEntries.forEach(function(e){
+        if(e._ms < winStart && (!carryOver || e._ms > carryOver._ms)) carryOver=e;
+      });
+      const entries2 = [];
+      if(carryOver) entries2.push(Object.assign({},carryOver,{_ms:winStart,_carry:true}));
+      rawEntries.forEach(function(e){ if(e._ms>=winStart) entries2.push(e); });
+
       out+='<div style="display:flex;align-items:center;gap:8px;">';
       out+='<div style="font-size:11px;font-weight:700;color:#1a2e5a;min-width:36px;">'+l+'</div>';
       out+='<div style="flex:1;height:18px;display:flex;border-radius:4px;overflow:hidden;border:1px solid #dde3f0;position:relative;">';
-      // Render 288 5-min slots
-      for(let slot=0;slot<288;slot++){
-        const sSlot=slot*5;
+      for(let slot=0;slot<TSLOTS;slot++){
+        const slotMs2 = winStart + slot*slotDur;
+        const isFut = slotMs2 > snapMsVal;
+        if(isFut){out+='<div style="flex:1;background:#f0f2f7;opacity:.3;min-width:0;"></div>';continue;}
         let st=null;
-        for(let i=entries.length-1;i>=0;i--){
-          const hm=entries[i].timeVal.split(':');
-          const em=parseInt(hm[0]||0)*60+parseInt(hm[1]||0);
-          if(em<=sSlot){st=entries[i].status;break;}
+        for(let i=entries2.length-1;i>=0;i--){
+          if(entries2[i]._ms<=slotMs2){st=entries2[i].status;break;}
         }
         const bg=st?(OP_COLORS[st]||'#e8ecf5'):'#f4f6fb';
-        const bdr=slot>0&&slot%12===0?'border-left:1px solid rgba(255,255,255,.3);':'';
+        const d3=new Date(slotMs2);
+        const bdr=(d3.getMinutes()===0)?'border-left:1px solid rgba(255,255,255,.3);':'';
         out+='<div style="flex:1;background:'+bg+';min-width:0;'+bdr+'"></div>';
       }
+      // Snapshot-tijdstip markering
+      const snapPct=(TL_PAST_H/TL_TOTAL_H*100).toFixed(1);
+      out+='<div style="position:absolute;top:0;bottom:0;left:'+snapPct+'%;width:1px;background:#e24b4a;z-index:5;pointer-events:none;"></div>';
       out+='</div>';
-      // Hour labels under bar
       out+='</div>';
       // Mini legend for this line
-      const seen={};entries.forEach(e=>{if(e.status)seen[e.status]=true;});
+      const seen={};entries2.forEach(e=>{if(e.status)seen[e.status]=true;});
       if(Object.keys(seen).length){
         out+='<div style="display:flex;gap:8px;margin-left:44px;flex-wrap:wrap;">';
         Object.keys(seen).forEach(s=>{
@@ -1384,9 +1429,13 @@ function sLines(title,data,snapDept,lineHistory){
       }
     });
     out+='</div>';
-    // Hour labels row
+    // Hour labels row (rollend venster)
     out+='<div style="display:flex;margin-left:44px;margin-top:2px;">';
-    for(let h=0;h<24;h++) out+='<div style="flex:1;font-size:8px;color:#8a9abf;text-align:left;min-width:0;">'+(h%4===0?p2(h):'')+'</div>';
+    for(let h=0;h<=TL_TOTAL_H;h++){
+      const hMs=(snapMs||Date.now())-TL_PAST_H*3600000+h*3600000;
+      const hD=new Date(hMs);
+      out+='<div style="flex:1;font-size:8px;color:#8a9abf;text-align:left;min-width:0;">'+(h%4===0?p2(hD.getHours()):'')+'</div>';
+    }
     out+='</div>';
   }
 
@@ -1509,41 +1558,73 @@ function initLines() {
   renderLines();
 }
 
+// ===== ROLLENDE TIJDSLIJN ENGINE =====
+const TL_PAST_H  = 14;
+const TL_FUT_H   = 4;
+const TL_TOTAL_H = TL_PAST_H + TL_FUT_H;
+const TL_SLOT_MINS = 10;
+const TL_SLOTS = TL_TOTAL_H * 6;
+
+function entryToMs(entry) {
+  if (!entry.date || !entry.timeVal) return null;
+  const dp = entry.date.split('-');
+  const tp = entry.timeVal.split(':');
+  return new Date(+dp[0], +dp[1]-1, +dp[2], +tp[0], +tp[1], 0).getTime();
+}
+function msToLabel(ms) {
+  const d=new Date(ms), p2=n=>String(n).padStart(2,'0');
+  return {time:p2(d.getHours())+':'+p2(d.getMinutes()),date:p2(d.getDate())+'/'+p2(d.getMonth()+1),h:d.getHours(),m:d.getMinutes(),day:d.getDate()};
+}
 function buildMiniBar(line) {
   const entries = opHistoryData[line] || [];
-  const now = new Date();
-  const nowMins = now.getHours()*60 + now.getMinutes();
+  const nowMs = Date.now();
+  const windowStartMs = nowMs - TL_PAST_H * 3600000;
+  const windowEndMs   = nowMs + TL_FUT_H  * 3600000;
+  const totalMs = TL_TOTAL_H * 3600000;
+
+  // 36 segmenten van 30 min over het rollend venster
+  const SEGS = 36, SEG_MS = totalMs / SEGS;
+
   const bar = document.createElement('div');
-  bar.style.cssText = 'display:flex;height:8px;border-radius:4px;overflow:hidden;margin-top:5px;width:100%;border:1px solid rgba(0,0,0,.1);';
-  // 48 segments of 30 min each
-  const SEGS = 48, SEG_MINS = 30;
-  for (let seg=0; seg<SEGS; seg++) {
-    const segStart = seg * SEG_MINS;
-    const segEnd = segStart + SEG_MINS - 1;
+  bar.style.cssText = 'display:flex;height:8px;border-radius:4px;overflow:hidden;margin-top:5px;width:100%;border:1px solid rgba(0,0,0,.1);position:relative;';
+
+  for (let seg = 0; seg < SEGS; seg++) {
+    const segStartMs = windowStartMs + seg * SEG_MS;
     const block = document.createElement('div');
     block.style.cssText = 'flex:1;min-width:0;';
-    if (segStart > nowMins) {
+
+    if (segStartMs > nowMs) {
       block.style.background = 'rgba(255,255,255,.2)';
     } else {
+      // Zoek de meest recente entry vóór dit segment — gebruik _ms indien beschikbaar
       let st = null;
-      for (let i=entries.length-1; i>=0; i--) {
-        const hm = entries[i].timeVal.split(':');
-        const em = parseInt(hm[0]||0)*60 + parseInt(hm[1]||0);
-        if (em <= segStart) { st = entries[i].status; break; }
+      for (let i = entries.length - 1; i >= 0; i--) {
+        const e = entries[i];
+        const eMs = e._ms != null ? e._ms : entryToMs(e);
+        if (eMs != null && eMs <= segStartMs) { st = e.status; break; }
       }
-      block.style.background = st ? (OP_STATUS_COLORS[st]||'#8a9abf') : 'rgba(255,255,255,.15)';
-      if (seg>0 && seg%6===0) block.style.borderLeft = '1px solid rgba(255,255,255,.3)';
+      const col = st ? (OP_STATUS_COLORS[st] || '#8a9abf') : 'rgba(255,255,255,.15)';
+      block.style.background = col;
+      // Uurmarkering
+      const segH = new Date(segStartMs).getMinutes();
+      if (segH === 0) block.style.borderLeft = '1px solid rgba(255,255,255,.4)';
+      // Middernachtmarkering
+      const segDate = new Date(segStartMs);
+      if (segDate.getHours() === 0 && segDate.getMinutes() < 30)
+        block.style.borderLeft = '2px solid rgba(30,58,110,.5)';
     }
     bar.appendChild(block);
   }
-  // Current time marker
-  const pct = (nowMins/1440*100).toFixed(1);
+
+  // Nu-markering (vast op TL_PAST_H / TL_TOTAL_H)
+  const nowPct = (TL_PAST_H / TL_TOTAL_H * 100).toFixed(1);
   const marker = document.createElement('div');
-  marker.style.cssText = 'position:absolute;top:0;bottom:0;left:'+pct+'%;width:1px;background:rgba(255,255,255,.9);z-index:2;pointer-events:none;';
-  bar.style.position = 'relative';
+  marker.style.cssText = 'position:absolute;top:0;bottom:0;left:'+nowPct+'%;width:1px;background:#e24b4a;z-index:2;pointer-events:none;';
   bar.appendChild(marker);
+
   return bar;
 }
+
 
 function renderLines() {
   const body = document.getElementById('lines-body');
@@ -1556,7 +1637,7 @@ function renderLines() {
     const stColor = st ? (OP_STATUS_COLORS[st]||'#8a9abf') : '#8a9abf';
     const stLabel = st ? (OP_STATUS_LABELS[st]||st) : 'Geen melding';
     const opName = opItem && opItem.operator ? opItem.operator : '';
-    const opTime = opItem && opItem.time ? opItem.time : '';
+    const opTime = (opItem && opItem.time && opItem.time !== 'undefined') ? opItem.time : '';
 
     const div = document.createElement('div');
     div.id = 'lt-' + line;
@@ -1711,20 +1792,24 @@ function rebindOpStatus() {
 
   lines.forEach(function(line) {
     opHistUnsubs[line] = onValue(ref(db, 'operator-history/'+dept+'/'+line), function(snap) {
+      const cutoff25 = Date.now()-25*3600000;
       const all = snap.val() || {};
       const entries = [];
-      let lastKnown = null;
+      let lastBefore = null;
       const nd2=new Date(),p22=n=>String(n).padStart(2,'0');
       const today=nd2.getFullYear()+'-'+p22(nd2.getMonth()+1)+'-'+p22(nd2.getDate());
       Object.entries(all).forEach(function(pair) {
         const item = pair[1];
-        if (!item||!item.timeVal) return;
-        if (item.date===today) entries.push(item);
-        else if (!lastKnown||(item.date||'')>(lastKnown.date||'')) lastKnown=item;
+        if (!item||!item.timeVal||!item.date) return;
+        const msE = entryToMs(item);
+        if (msE===null) return;
+        if (msE >= cutoff25) entries.push(Object.assign({},item,{_ms:msE}));
+        else if (!lastBefore||(msE>lastBefore._ms)) lastBefore=Object.assign({},item,{_ms:msE});
       });
-      entries.sort((a,b)=>a.timeVal.localeCompare(b.timeVal));
-      if (lastKnown && (!entries.length||entries[0].timeVal>'00:00'))
-        entries.unshift(Object.assign({},lastKnown,{timeVal:'00:00',_carry:true}));
+      entries.sort((a,b)=>a._ms-b._ms);
+      const winS = Date.now()-TL_PAST_H*3600000;
+      if (lastBefore && (!entries.length||entries[0]._ms>winS))
+        entries.unshift(Object.assign({},lastBefore,{_ms:winS,_carry:true}));
       opHistoryData[line] = entries;
       renderLines();
     });
@@ -1745,6 +1830,251 @@ rebindLines();
 // Herbereken de tijdslijn elke minuut (nu-marker en toekomstige segmenten bijwerken)
 setInterval(function() { renderLines(); }, 60000);
 
+
+
+// ROLLING_CONSTANTS_MOVED_ABOVE
+
+// Laad entries van de laatste 24 uur voor een lijn (over middernacht heen)
+function loadLineHistory24h(dept, line, cb) {
+  onValue(ref(db, 'operator-history/'+dept+'/'+line), function(snap) {
+    const all = snap.val() || {};
+    const windowStart = Date.now() - TL_PAST_H * 3600000;
+    const cutoff = Date.now() - 25 * 3600000;
+    const entries = [];
+    let lastBefore = null;
+    Object.entries(all).forEach(function(pair) {
+      const k = pair[0], item = pair[1];
+      if (!item||!item.timeVal||!item.date) return;
+      const ms = entryToMs(item);
+      if (ms === null) return;
+      if (ms >= cutoff) {
+        entries.push(Object.assign({}, item, {_key:k, _ms:ms}));
+      } else {
+        if (!lastBefore || ms > lastBefore._ms)
+          lastBefore = Object.assign({}, item, {_key:k, _ms:ms});
+      }
+    });
+    entries.sort((a,b) => a._ms - b._ms);
+    // Carry-over: status van vóór het venster als beginpunt
+    if (lastBefore && (!entries.length || entries[0]._ms > windowStart)) {
+      entries.unshift(Object.assign({}, lastBefore, {_ms:windowStart, _carry:true}));
+    }
+    cb(entries);
+  }, {onlyOnce: true});
+}
+
+// Bouw rollende tijdslijnbalk
+// container: DOM element, entries: gesorteerde array, opts: {draggable, onDragEnd}
+function buildRollingBar(container, entries, opts) {
+  opts = opts || {};
+  const nowMs = Date.now();
+  const startMs = nowMs - TL_PAST_H * 3600000;
+  const endMs   = nowMs + TL_FUT_H  * 3600000;
+  const p2 = n => String(n).padStart(2,'0');
+
+  container.innerHTML = '';
+  container.style.cssText = (container.style.cssText||'') + 'position:relative;';
+
+  // === HOUR LABELS ===
+  const lblRow = document.createElement('div');
+  lblRow.style.cssText = 'display:flex;width:100%;margin-bottom:3px;pointer-events:none;position:relative;height:28px;';
+
+  for (let s=0; s<=TL_SLOTS; s++) {
+    const slotMs = startMs + s * TL_SLOT_MINS * 60000;
+    const lbl = msToLabel(slotMs);
+    if (lbl.m % 60 === 0 || s === 0) { // elke 60 min een label
+      const pct = (slotMs - startMs) / (endMs - startMs) * 100;
+      const el = document.createElement('div');
+      el.style.cssText = 'position:absolute;left:'+pct.toFixed(2)+'%;transform:translateX(-50%);text-align:center;font-size:9px;color:#5a6a8a;line-height:1.2;white-space:nowrap;';
+      el.innerHTML = '<b>'+lbl.time+'</b>';
+      // Show date label at midnight or first slot
+      if (lbl.h === 0 || s === 0) {
+        el.innerHTML += '<br><span style="color:#1E3A6E;font-size:8px;font-weight:700;">'+lbl.date+'</span>';
+        el.style.color = '#1E3A6E';
+      }
+      lblRow.appendChild(el);
+    }
+  }
+  container.appendChild(lblRow);
+
+  // === BAR ===
+  const barOuter = document.createElement('div');
+  barOuter.style.cssText = 'position:relative;width:100%;height:' + (opts.height||72) + 'px;border-radius:8px;overflow:hidden;border:2px solid #b0bcd8;cursor:'+(opts.draggable?'crosshair':'default')+';user-select:none;-webkit-user-select:none;';
+
+  const inner = document.createElement('div');
+  inner.style.cssText = 'display:flex;width:100%;height:100%;position:relative;';
+
+  const slots = [];
+  for (let s=0; s<TL_SLOTS; s++) {
+    const slotMs = startMs + s * TL_SLOT_MINS * 60000;
+    const isFuture = slotMs > nowMs;
+    const block = document.createElement('div');
+    block.style.cssText = 'flex:1;min-width:0;'+(opts.draggable&&!isFuture?'cursor:crosshair;':'cursor:default;');
+    block.dataset.slot = s;
+
+    if (isFuture) {
+      block.style.background = '#f0f2f7';
+      block.style.opacity = '.3';
+    } else {
+      // Find status at this slot
+      let st = null;
+      for (let i=entries.length-1; i>=0; i--) {
+        if (entries[i]._ms <= slotMs) { st = entries[i].status; break; }
+      }
+      const stColor = st ? (OP_STATUS_COLORS[st]||'#e8ecf5') : '#e8ecf5';
+      block.style.background = stColor;
+      // Hour separator line
+      const slotLbl = msToLabel(slotMs);
+      if (slotLbl.m === 0) block.style.borderLeft = '1px solid rgba(255,255,255,.4)';
+      // Midnight marker
+      if (slotLbl.h === 0 && slotLbl.m < TL_SLOT_MINS) {
+        block.style.borderLeft = '2px solid rgba(30,58,110,.5)';
+      }
+    }
+    slots.push(block);
+    inner.appendChild(block);
+  }
+
+  // Now marker (fixed position)
+  const nowPct = TL_PAST_H / TL_TOTAL_H * 100;
+  const nowLine = document.createElement('div');
+  nowLine.style.cssText = 'position:absolute;top:0;bottom:0;left:'+nowPct.toFixed(2)+'%;width:2px;background:#e24b4a;z-index:10;pointer-events:none;';
+  // Now label
+  const nowLbl = document.createElement('div');
+  const nd = new Date();
+  nowLbl.style.cssText = 'position:absolute;top:2px;left:'+nowPct.toFixed(2)+'%;transform:translateX(-50%);background:#e24b4a;color:#fff;font-size:8px;font-weight:700;padding:1px 4px;border-radius:3px;pointer-events:none;z-index:11;white-space:nowrap;';
+  nowLbl.textContent = p2(nd.getHours())+':'+p2(nd.getMinutes());
+  inner.appendChild(nowLine);
+  inner.appendChild(nowLbl);
+
+  barOuter.appendChild(inner);
+  container.appendChild(barOuter);
+  container._slots = slots;
+  container._inner = inner;
+  container._startMs = startMs;
+  container._nowMs = nowMs;
+
+  // === DRAG SUPPORT ===
+  if (opts.draggable) {
+    attachRollingDrag(inner, slots, entries, startMs, nowMs, opts.onDragEnd);
+  }
+
+  return {slots, inner, startMs, nowMs};
+}
+
+function slotMsFromX(e, inner, startMs) {
+  const rect = inner.getBoundingClientRect();
+  const clientX = (e.touches&&e.touches[0]) ? e.touches[0].clientX
+                 : (e.changedTouches&&e.changedTouches[0]) ? e.changedTouches[0].clientX
+                 : e.clientX;
+  const pct = (clientX - rect.left) / rect.width;
+  const slotMs = startMs + pct * TL_TOTAL_H * 3600000;
+  // Snap to 10-min boundary
+  return Math.round(slotMs / (TL_SLOT_MINS*60000)) * (TL_SLOT_MINS*60000);
+}
+
+function slotIdx(ms, startMs) {
+  return Math.max(0, Math.min(TL_SLOTS-1, Math.round((ms-startMs)/(TL_SLOT_MINS*60000))));
+}
+
+function msToTimeStr(ms) {
+  const d = new Date(ms);
+  const p2 = n => String(n).padStart(2,'0');
+  return p2(d.getHours())+':'+p2(d.getMinutes());
+}
+function msToDateStr(ms) {
+  const d = new Date(ms);
+  const p2 = n => String(n).padStart(2,'0');
+  return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());
+}
+
+function attachRollingDrag(inner, slots, entries, startMs, nowMs, onDragEnd) {
+  let ds=-1, de=-1, dragging=false;
+  const slotDurMs = TL_SLOT_MINS * 60000;
+  const futureCutoff = Math.floor((nowMs - startMs) / slotDurMs);
+
+  function highlight() {
+    const s=Math.min(ds,de), e=Math.max(ds,de);
+    slots.forEach(function(b,i){ b.style.outline=(i>=s&&i<=e)?'2px solid rgba(30,58,110,.85)':''; });
+  }
+  function done(e) {
+    if (!dragging) return; dragging=false;
+    const s=Math.min(ds,de), en=Math.max(ds,de);
+    slots.forEach(function(b){b.style.outline='';});
+    if (en-s >= 1 && onDragEnd) {
+      const startSlotMs = startMs + s * slotDurMs;
+      const endSlotMs   = startMs + en * slotDurMs;
+      onDragEnd(startSlotMs, endSlotMs, entries);
+    }
+    e.preventDefault();
+  }
+  function getSlot(ev) {
+    const rect=inner.getBoundingClientRect();
+    const cx=(ev.touches&&ev.touches[0])?ev.touches[0].clientX:(ev.changedTouches&&ev.changedTouches[0])?ev.changedTouches[0].clientX:ev.clientX;
+    return Math.max(0, Math.min(futureCutoff, Math.floor(((cx-rect.left)/rect.width)*TL_SLOTS)));
+  }
+  inner.addEventListener('mousedown',function(e){const s=getSlot(e);if(s>futureCutoff)return;dragging=true;ds=s;de=s;highlight();e.preventDefault();});
+  inner.addEventListener('mousemove',function(e){if(!dragging)return;de=getSlot(e);highlight();e.preventDefault();});
+  inner.addEventListener('mouseup',done);
+  inner.addEventListener('mouseleave',done);
+  inner.addEventListener('touchstart',function(e){const s=getSlot(e);if(s>futureCutoff)return;dragging=true;ds=s;de=s;highlight();e.preventDefault();},{passive:false});
+  inner.addEventListener('touchmove',function(e){if(!dragging)return;de=getSlot(e);highlight();e.preventDefault();},{passive:false});
+  inner.addEventListener('touchend',done,{passive:false});
+}
+
+// Speed chart (SVG step chart)
+function buildSpeedChart(container, entries, height, extraPoint) {
+  height = height || 100;
+  let speedEntries = entries.filter(function(e){ return e.snelheid !== undefined && e.snelheid !== '' && e.snelheid !== null; });
+  // extraPoint: {ms, snelheid} — huidig config-waarde als er geen historiek is
+  if (extraPoint && extraPoint.snelheid && !speedEntries.length) {
+    speedEntries = [{_ms: extraPoint.ms || Date.now(), snelheid: extraPoint.snelheid, status:'productie'}];
+  }
+  container.innerHTML = '';
+  if (!speedEntries.length) {
+    container.style.cssText='display:none;';
+    return;
+  }
+  container.style.cssText='width:100%;margin-top:6px;';
+  const label = document.createElement('div');
+  label.style.cssText='font-size:10px;font-weight:700;color:#5a6a8a;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;';
+  label.textContent='⚡ Output extruder (kg/h)';
+  container.appendChild(label);
+
+  const maxV = Math.max.apply(null, speedEntries.map(function(e){return parseFloat(e.snelheid);})) * 1.15 || 1;
+  const startMs = Date.now() - TL_PAST_H * 3600000;
+  const totalMs = TL_TOTAL_H * 3600000;
+  const W = 1000, H = height;
+
+  const nowX = ((Date.now()-startMs)/totalMs*W).toFixed(1);
+  let path = '';
+  let prevX = -1, prevY = H;
+  speedEntries.forEach(function(e, i) {
+    const x = Math.max(0, Math.min(W, ((e._ms - startMs) / totalMs) * W));
+    const y = H - (parseFloat(e.snelheid) / maxV) * (H - 10);
+    if (prevX < 0) { path += 'M'+x.toFixed(1)+','+H+' L'+x.toFixed(1)+','+y.toFixed(1); }
+    else { path += ' L'+x.toFixed(1)+','+prevY.toFixed(1)+' L'+x.toFixed(1)+','+y.toFixed(1); }
+    prevX = x; prevY = y;
+  });
+  // Verleng de laatste waarde tot het huidige moment (nowX)
+  if (prevX >= 0) { path += ' L'+nowX+','+prevY.toFixed(1)+' L'+nowX+','+H+' Z'; }
+
+  const svg = `<svg width="100%" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="display:block;border-radius:6px;border:1px solid #dde3f0;background:#f9fafb;">
+    <path d="${path}" fill="none" stroke="#388E3C" stroke-width="2.5" stroke-linejoin="round"/>
+    <line x1="${nowX}" y1="0" x2="${nowX}" y2="${H}" stroke="#e24b4a" stroke-width="1.5" stroke-dasharray="3,2"/>
+    ${speedEntries.map(function(e){
+      const x=Math.max(0,Math.min(W,((e._ms-startMs)/totalMs*W)));
+      const y=H-(parseFloat(e.snelheid)/maxV)*(H-10);
+      return '<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="3" fill="#388E3C"/>'
+            +'<text x="'+x.toFixed(1)+'" y="'+(y-6).toFixed(1)+'" font-size="9" fill="#2a6018" text-anchor="middle">'+parseFloat(e.snelheid)+'</text>';
+    }).join('')}
+    <text x="2" y="10" font-size="8" fill="#8a9abf">${maxV.toFixed(0)}</text>
+    <text x="2" y="${H-2}" font-size="8" fill="#8a9abf">0</text>
+  </svg>`;
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = svg;
+  container.appendChild(wrapper);
+}
 
 // ===== P4 INLINE STATUS INGAVE =====
 var p4ActiveLine = null;
@@ -1808,30 +2138,95 @@ function renderP4Panel(line, panel, cardDiv) {
   snelInp.value=cfg.snelheid||'';
   snelInp.style.cssText='width:70px;padding:5px 8px;border:1.5px solid #b0bcd8;border-radius:6px;font-size:12px;';
   snelInp.onclick=function(e){e.stopPropagation();};
+  snelInp.oninput=function(e){
+    e.stopPropagation();
+    if(this.value.trim()){
+      var sb=document.getElementById('p4-save-'+line);
+      var ni=document.getElementById('p4-note-'+line);
+      if(sb){sb.style.opacity='1';sb.style.pointerEvents='auto';sb.style.display='block';}
+      if(ni) ni.style.display='block';
+    }
+  };
   hdr.appendChild(timeInp); hdr.appendChild(nameInp); hdr.appendChild(snelInp);
   panel.appendChild(hdr);
 
-  // Timeline label row
-  const lblRow = document.createElement('div');
-  lblRow.style.cssText='display:flex;width:100%;margin-bottom:2px;';
-  for(let h=0;h<24;h++){
-    const l=document.createElement('div');
-    l.style.cssText='flex:1;font-size:7px;color:#8a9abf;text-align:left;min-width:0;pointer-events:none;';
-    l.textContent=(h%4===0)?p2(h):'';
-    lblRow.appendChild(l);
-  }
-  panel.appendChild(lblRow);
+  // Rollende tijdslijn container
+  const tlContainer = document.createElement('div');
+  tlContainer.style.cssText = 'width:100%;margin-bottom:6px;';
+  panel.appendChild(tlContainer);
 
-  // Timeline bar (drag-enabled)
-  const barWrap = document.createElement('div');
-  barWrap.style.cssText='position:relative;width:100%;height:80px;border-radius:10px;overflow:hidden;border:2px solid #b0bcd8;cursor:crosshair;user-select:none;-webkit-user-select:none;margin-bottom:6px;box-shadow:0 2px 8px rgba(0,0,0,.1);';
-  panel.appendChild(barWrap);
+  // Speed chart container
+  const speedContainer = document.createElement('div');
+  panel.appendChild(speedContainer);
 
-  // Drag hint
-  const hint = document.createElement('div');
-  hint.style.cssText='font-size:10px;color:#8a9abf;text-align:center;margin-bottom:8px;';
-  hint.textContent='Sleep over de balk om een periode aan te duiden';
-  panel.appendChild(hint);
+  // Load 24h history and render rolling timeline
+  loadLineHistory24h(dept, line, function(entries) {
+    panel._entries = entries;
+    buildRollingBar(tlContainer, entries, {
+      height: 80,
+      draggable: true,
+      onDragEnd: function(startSlotMs, endSlotMs, ents) {
+        const p2 = n => String(n).padStart(2,'0');
+        // Find prev status at endSlotMs for restoration
+        let prevAtEnd = null;
+        for (let i=ents.length-1; i>=0; i--) {
+          if (ents[i]._ms <= endSlotMs) { prevAtEnd = ents[i].status; break; }
+        }
+        panel._startMs   = startSlotMs;
+        panel._endMs     = endSlotMs;
+        panel._prevAtEnd = prevAtEnd;
+        panel._startTime = p2(new Date(startSlotMs).getHours())+':'+p2(new Date(startSlotMs).getMinutes());
+        panel._endTime   = p2(new Date(endSlotMs).getHours())+':'+p2(new Date(endSlotMs).getMinutes());
+        panel._startDate = msToDateStr(startSlotMs);
+        panel._endDate   = msToDateStr(endSlotMs);
+        panel._selStatus = null;
+        timeInp.value = panel._startTime;
+
+        // Bouw picker volledig op
+        const sd = new Date(startSlotMs), ed = new Date(endSlotMs);
+        const timeLabel = p2(sd.getDate())+'/'+p2(sd.getMonth()+1)+' '+panel._startTime+' → '+panel._endTime;
+        picker.innerHTML = '';
+        picker.style.cssText = 'display:block;background:#edf3fe;border-radius:8px;padding:10px;margin-bottom:8px;border:1.5px solid #1E3A6E55;';
+
+        const timeLbl = document.createElement('div');
+        timeLbl.style.cssText = 'font-size:11px;font-weight:700;color:#1a2e5a;margin-bottom:8px;';
+        timeLbl.textContent = 'Van ' + timeLabel;
+        picker.appendChild(timeLbl);
+
+        const grid = document.createElement('div');
+        grid.style.cssText = 'display:grid;grid-template-columns:repeat(5,1fr);gap:5px;';
+        Object.keys(P4_ST).forEach(function(k) {
+          const s = P4_ST[k];
+          const btn = document.createElement('button');
+          btn.style.cssText = 'padding:7px 4px;border:2px solid '+s.bg+';background:'+s.bg+'22;border-radius:7px;cursor:pointer;font-size:11px;font-weight:700;color:'+s.c+';display:flex;align-items:center;gap:3px;justify-content:center;';
+          btn.innerHTML = (P4_ICONS[k]||'●')+' '+s.l;
+          btn.onclick = function(e) {
+            e.stopPropagation();
+            panel._selStatus = k;
+            grid.querySelectorAll('button').forEach(function(b){b.style.outline='';b.style.transform='';});
+            btn.style.outline = '3px solid #1E3A6E'; btn.style.transform='scale(1.04)';
+            saveBtn.style.opacity='1'; saveBtn.style.pointerEvents='auto';
+            saveBtn.style.display='block'; noteInp.style.display='block';
+          };
+          grid.appendChild(btn);
+        });
+        picker.appendChild(grid);
+      }
+    });
+    const cfgNow = lineConfigData[line] || {};
+    buildSpeedChart(speedContainer, entries, 100, {snelheid: cfgNow.snelheid, ms: Date.now()});
+  });
+
+  // Re-render rolling bar every minute to keep nowMs current
+  panel._refreshTimer = setInterval(function(){
+    if (panel.style.display !== 'none') {
+      loadLineHistory24h(dept, line, function(entries) {
+        panel._entries = entries;
+        buildRollingBar(tlContainer, entries, {height:80, draggable:true, onDragEnd: panel._onDragEnd});
+        buildSpeedChart(speedContainer, entries, 56);
+      });
+    }
+  }, 60000);
 
   // Status picker (hidden until drag)
   const picker = document.createElement('div');
@@ -1861,55 +2256,6 @@ function renderP4Panel(line, panel, cardDiv) {
   tlBtn2.onclick=function(e){e.stopPropagation();openTimelineModal(line);};
   panel.appendChild(tlBtn2);
 
-  // Load history and draw bar + attach drag
-  onValue(ref(db,'operator-history/P4/'+line), function(snap) {
-    const nd=new Date(); const nd_today=nd.getFullYear()+'-'+p2(nd.getMonth()+1)+'-'+p2(nd.getDate());
-    const all=snap.val()||{}; const entries=[]; let lastKnown=null;
-    Object.entries(all).forEach(function(pair){
-      const key2=pair[0], item=pair[1];
-      if(!item||!item.timeVal) return;
-      if(item.date===nd_today) entries.push(Object.assign({},item,{_key:key2}));
-      else if(!lastKnown||(item.date||'')>(lastKnown.date||'')) lastKnown=Object.assign({},item,{_key:key2});
-    });
-    entries.sort((a,b)=>a.timeVal.localeCompare(b.timeVal));
-    if(lastKnown&&(!entries.length||entries[0].timeVal>'00:00'))
-      entries.unshift(Object.assign({},lastKnown,{timeVal:'00:00',_carry:true}));
-    panel._entries=entries;
-
-    // Draw 288 slots
-    barWrap.innerHTML='';
-    const inner=document.createElement('div');
-    inner.style.cssText='display:flex;width:100%;height:100%;position:relative;';
-    const slots=[];
-    const curNowMins=nd.getHours()*60+nd.getMinutes();
-    for(let slot=0;slot<288;slot++){
-      const sStart=slot*5;
-      const block=document.createElement('div');
-      block.style.cssText='flex:1;min-width:0;cursor:'+(sStart>curNowMins?'default':'crosshair')+';';
-      if(sStart>curNowMins){
-        block.style.background='#f0f2f7'; block.style.opacity='.35';
-      } else {
-        let st=null;
-        for(let i=entries.length-1;i>=0;i--){
-          const hm=entries[i].timeVal.split(':');
-          const em=parseInt(hm[0]||0)*60+parseInt(hm[1]||0);
-          if(em<=sStart){st=entries[i].status;break;}
-        }
-        block.style.background=st?(OP_STATUS_COLORS[st]||'#e8ecf5'):'#e8ecf5';
-        if(slot>0&&slot%12===0) block.style.borderLeft='1px solid rgba(255,255,255,.3)';
-      }
-      slots.push(block); inner.appendChild(block);
-    }
-    // Now marker
-    const marker=document.createElement('div');
-    marker.style.cssText='position:absolute;top:0;bottom:0;left:'+(curNowMins/1440*100).toFixed(2)+'%;width:2px;background:#e24b4a;z-index:10;pointer-events:none;';
-    inner.appendChild(marker);
-    barWrap.appendChild(inner);
-    panel._slots=slots;
-
-    // Attach drag
-    attachP4Drag(inner, slots, line, entries, panel, curNowMins, timeInp, picker, saveBtn, noteInp);
-  },{onlyOnce:true});
 }
 
 function attachP4Drag(inner, slots, line, entries, panel, nowMins, timeInp, picker, saveBtn, noteInp) {
@@ -1943,7 +2289,7 @@ function attachP4Drag(inner, slots, line, entries, panel, nowMins, timeInp, pick
     // Set time input to drag start
     timeInp.value=startTime;
     // Build picker
-    picker.innerHTML='<div style="font-size:11px;font-weight:700;color:#1a2e5a;margin-bottom:6px;">Van '+startTime+' tot '+endTime+' — kies status:</div>';
+    picker.innerHTML='<div style="font-size:11px;font-weight:700;color:#1a2e5a;margin-bottom:6px;" class="dp-time-inner">Sleep de balk om een periode te kiezen</div>';
     const grid=document.createElement('div');
     grid.style.cssText='display:grid;grid-template-columns:repeat(5,1fr);gap:6px;';
     const allBtns=[];
@@ -1992,19 +2338,31 @@ function attachP4Drag(inner, slots, line, entries, panel, nowMins, timeInp, pick
 
 function saveP4Status(line, panel) {
   const selStatus = panel._selStatus;
-  if (!selStatus) return;
+  const snelheidCheck = document.getElementById('p4-snelheid-'+line);
+  if (!selStatus && !(snelheidCheck&&snelheidCheck.value.trim())) return;
   const p2 = n => String(n).padStart(2,'0');
   const now = new Date();
   const today = now.getFullYear()+'-'+p2(now.getMonth()+1)+'-'+p2(now.getDate());
   const startTime = panel._startTime || document.getElementById('p4-time-'+line).value || p2(now.getHours())+':'+p2(now.getMinutes());
+  const startDate = panel._startDate || today;
   const endTime = panel._endTime;
+  const endDate = panel._endDate || today;
   const opName = document.getElementById('p4-name-'+line).value.trim() || 'Ploegchef';
   const note = document.getElementById('p4-note-'+line).value.trim();
   const snelheid = document.getElementById('p4-snelheid-'+line).value.trim();
 
   const histRef = ref(db,'operator-history/P4/'+line);
-  const endMins = panel._dragEnd ? panel._dragEnd*5 : -1;
-  const curNowMins = now.getHours()*60+now.getMinutes();
+  const endMs2  = panel._endMs  || -1;
+  const startMs2 = panel._startMs || -1;
+
+  // Auto snelheid: bij panne/problemen/overgang → 0, bij productie → herstel
+  const isDown = ['panne','problemen','overgang'].includes(selStatus);
+  const isUp   = selStatus === 'productie';
+  if (isDown && !snelheid) snelheid = '0';
+  if (isUp && !snelheid) {
+    const lastSp = (lineConfigData[line]||{}).snelheid;
+    if (lastSp) snelheid = lastSp;
+  }
 
   // Remove entries strictly between startTime and endTime (overlap cleanup)
   const entries = panel._entries || [];
@@ -2017,21 +2375,33 @@ function saveP4Status(line, panel) {
 
   Promise.all(delPromises).then(function(){
     // Save start entry
-    push(histRef, {timeVal:startTime, status:selStatus, operator:opName, date:today, note:note});
+    const entryData = {timeVal:startTime, status:selStatus, operator:opName, date:startDate, note:note};
+    if (snelheid) entryData.snelheid = snelheid;
+    push(histRef, entryData);
 
     // Save end restoration entry (if not at current time and prev status known)
-    if (endTime && endMins >= 0 && endMins < curNowMins-5 && panel._prevAtEnd) {
-      push(histRef, {timeVal:endTime, status:panel._prevAtEnd, operator:opName, date:today, note:'Einde periode'});
+    if (endTime && endMs2 > 0 && endMs2 < Date.now()-300000 && panel._prevAtEnd) {
+      push(histRef, {timeVal:endTime, status:panel._prevAtEnd, operator:opName, date:endDate, note:'Einde periode'});
     }
 
     // Update current status
     set(ref(db,'operator-status/P4/'+line), {status:selStatus, operator:opName, time:startTime, date:today});
   });
 
-  // Save snelheid
+  // Save snelheid in config + history (ook als geen status gesleept werd)
   if (snelheid) {
     const stamp=p2(now.getDate())+'/'+p2(now.getMonth()+1)+'/'+now.getFullYear()+' '+p2(now.getHours())+':'+p2(now.getMinutes());
     update(ref(db,'operator-line-config/P4/'+line), {snelheid, snelheid_ts:stamp});
+    // Snelheid-only entry in historiek (als er geen status geselecteerd werd)
+    if (!selStatus) {
+      const curStatus = (opStatusData[line] && opStatusData[line].status) || null;
+      push(ref(db,'operator-history/P4/'+line), {
+        timeVal: p2(now.getHours())+':'+p2(now.getMinutes()),
+        status: curStatus || 'productie',
+        operator: opName || 'Ploegchef',
+        date: today, note: '', snelheid: snelheid
+      });
+    }
   }
 
   panel.style.display='none'; panel.innerHTML='';
@@ -2336,92 +2706,80 @@ window.exportControleExcel = function() {
 
 loadControle();
 
+let currentTimelineLine = null;
 window.openTimelineModal = function(line) {
-  document.getElementById('timeline-modal-title').textContent = 'Tijdslijn — ' + line;
+  currentTimelineLine = line;
+  document.getElementById('timeline-modal-title').textContent = 'Tijdslijn \u2014 ' + line;
   const body = document.getElementById('timeline-modal-body');
   body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--ipb-text-light);">Laden...</div>';
   document.getElementById('timeline-modal-bg').style.display = 'flex';
-
   const p2 = n => String(n).padStart(2,'0');
-  const today = (function(){ const d=new Date(); return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate()); })();
 
-  onValue(ref(db, 'operator-history/' + dept + '/' + line), function(snap) {
-    const now = new Date();
-    const nowMins = now.getHours()*60 + now.getMinutes();
-    const SLOT_MINS = 5;
+  loadLineHistory24h(dept, line, function(entries) {
+    body.innerHTML = '';
 
-    let entries = [], lastKnown = null;
-    if (snap && snap.val()) {
-      Object.values(snap.val()).forEach(function(item) {
-        if (!item || !item.timeVal) return;
-        if (item.date === today) entries.push(item);
-        else if (!lastKnown || (item.date||'') > (lastKnown.date||'')) lastKnown = item;
-      });
-    }
-    entries.sort(function(a,b){
-      const am=a.timeVal.split(':'); const bm=b.timeVal.split(':');
-      return (parseInt(am[0])*60+parseInt(am[1])) - (parseInt(bm[0])*60+parseInt(bm[1]));
-    });
-    if (lastKnown && (entries.length===0 || entries[0].timeVal > '00:00'))
-      entries.unshift(Object.assign({}, lastKnown, {timeVal:'00:00', date:today, _carryover:true}));
-
+    // Huidige status blok
     const cur = opStatusData[line];
-    let h = '';
     if (cur) {
       const col = OP_STATUS_COLORS[cur.status]||'#8a9abf';
       const lbl = OP_STATUS_LABELS[cur.status]||cur.status;
-      h += '<div style="padding:10px 12px;background:'+col+'20;border-radius:8px;border-left:4px solid '+col+';margin-bottom:14px;display:flex;align-items:center;gap:10px;">'
-         + '<div style="width:12px;height:12px;border-radius:50%;background:'+col+';flex-shrink:0;"></div>'
-         + '<div><div style="font-size:14px;font-weight:700;color:'+col+';">'+lbl+'</div>'
-         + '<div style="font-size:12px;color:var(--ipb-text-muted);">'+(cur.operator||'')+(cur.note?' · '+cur.note:'')+'</div></div>'
-         + '<div style="margin-left:auto;font-size:11px;color:var(--ipb-text-muted);">'+(cur.time||'')+'</div></div>';
+      const curDiv = document.createElement('div');
+      curDiv.style.cssText = 'padding:10px 12px;background:'+col+'20;border-radius:8px;border-left:4px solid '+col+';margin-bottom:14px;display:flex;align-items:center;gap:10px;';
+      curDiv.innerHTML = '<div style="width:12px;height:12px;border-radius:50%;background:'+col+';flex-shrink:0;"></div>'
+        + '<div><div style="font-size:14px;font-weight:700;color:'+col+';">'+lbl+'</div>'
+        + '<div style="font-size:12px;color:var(--ipb-text-muted);">'+(cur.operator||'')+(cur.note?' \u00b7 '+cur.note:'')+'</div></div>'
+        + '<div style="margin-left:auto;font-size:11px;color:var(--ipb-text-muted);">'+(cur.time&&cur.time!=='undefined'?cur.time:'')+'</div>';
+      body.appendChild(curDiv);
     }
 
-    // Hour labels
-    h += '<div style="display:flex;width:100%;margin-bottom:3px;">';
-    for (let i=0;i<24;i++) h += '<div style="flex:1;font-size:9px;color:#8a9abf;text-align:center;min-width:0;">'+(i%4===0||i===23?p2(i):'')+'</div>';
-    h += '</div>';
+    // Rollende tijdslijn
+    const barContainer = document.createElement('div');
+    body.appendChild(barContainer);
+    buildRollingBar(barContainer, entries, {height: 72, draggable: false});
 
-    // 5-min bar
-    h += '<div style="position:relative;width:100%;height:44px;display:flex;border-radius:8px;overflow:hidden;border:1px solid #dde3f0;">';
-    for (let slot=0;slot<288;slot++) {
-      const sStart=slot*SLOT_MINS, sEnd=sStart+SLOT_MINS-1;
-      if (sStart>nowMins){h+='<div style="flex:1;background:#f0f2f7;opacity:.35;min-width:0;"></div>';continue;}
-      let st=null,opN='',opNo='';
-      for (let i=entries.length-1;i>=0;i--){
-        const hm=entries[i].timeVal.split(':'); const em=parseInt(hm[0]||0)*60+parseInt(hm[1]||0);
-        if(em<=sEnd){st=entries[i].status;opN=entries[i].operator||'';opNo=entries[i].note||'';break;}
-      }
-      const hh=Math.floor(sStart/60),mm=sStart%60;
-      const bg=st?(OP_STATUS_COLORS[st]||'#e8ecf5'):'#e8ecf5';
-      const bdr=slot>0&&slot%12===0?'border-left:1px solid rgba(255,255,255,.4);':'';
-      h+='<div style="flex:1;background:'+bg+';min-width:0;'+bdr+'" title="'+p2(hh)+':'+p2(mm)+' — '+(OP_STATUS_LABELS[st]||'Geen data')+(opN?' ('+opN+')':'')+'"></div>';
+    // Snelheidsgrafiek
+    const speedDiv = document.createElement('div');
+    speedDiv.style.cssText = 'margin-top:8px;';
+    body.appendChild(speedDiv);
+    const cfgLine = lineConfigData[currentTimelineLine] || {};
+    buildSpeedChart(speedDiv, entries, 100, {snelheid: cfgLine.snelheid, ms: Date.now()});
+
+    // Meldingen lijst
+    const meldLbl = document.createElement('div');
+    meldLbl.style.cssText = 'font-size:11px;font-weight:700;color:var(--ipb-text-muted);text-transform:uppercase;letter-spacing:.08em;margin:12px 0 6px;';
+    meldLbl.textContent = 'Meldingen (24u)';
+    body.appendChild(meldLbl);
+
+    const todayE = entries.filter(function(e){ return !e._carry; });
+    if (!todayE.length) {
+      const empty = document.createElement('div');
+      empty.style.cssText = 'text-align:center;padding:12px;color:var(--ipb-text-light);font-size:13px;';
+      empty.textContent = 'Nog geen meldingen';
+      body.appendChild(empty);
+    } else {
+      [...todayE].reverse().forEach(function(item) {
+        const col = OP_STATUS_COLORS[item.status]||'#8a9abf';
+        const lbl = OP_STATUS_LABELS[item.status]||item.status;
+        const d2 = new Date(item._ms);
+        const dateStr = p2(d2.getDate())+'/'+p2(d2.getMonth()+1)+' '+p2(d2.getHours())+':'+p2(d2.getMinutes());
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid #f0f2f7;';
+        const badge = document.createElement('div');
+        badge.style.cssText = 'background:'+col+';color:#fff;font-size:11px;font-weight:700;padding:2px 7px;border-radius:20px;white-space:nowrap;flex-shrink:0;';
+        badge.textContent = dateStr;
+        const info = document.createElement('div');
+        info.style.cssText = 'flex:1;';
+        let extra = '';
+        if (item.snelheid) extra += ' \u00b7 '+item.snelheid+' kg/h';
+        if (item.toerental) extra += ' \u00b7 '+item.toerental+' rpm';
+        info.innerHTML = '<div style="font-size:13px;font-weight:600;color:'+col+';">'+lbl+'</div>'
+          + '<div style="font-size:11px;color:#8a9abf;">'+(item.operator||'')+(item.note?' \u00b7 '+item.note:'')+extra+'</div>';
+        row.appendChild(badge); row.appendChild(info);
+        body.appendChild(row);
+      });
     }
-    h+='<div style="position:absolute;top:0;bottom:0;left:'+(nowMins/1440*100).toFixed(2)+'%;width:2px;background:#e24b4a;z-index:10;"></div>';
-    h+='</div>';
-
-    // Legend
-    const seen={};entries.forEach(function(e){if(e.status)seen[e.status]=true;});
-    h+='<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">';
-    Object.keys(seen).forEach(function(s){h+='<div style="display:flex;align-items:center;gap:3px;font-size:11px;color:#5a6a8a;"><div style="width:10px;height:10px;border-radius:2px;background:'+(OP_STATUS_COLORS[s]||'#ccc')+'"></div>'+(OP_STATUS_LABELS[s]||s)+'</div>';});
-    h+='</div>';
-
-    // Meldingen
-    h+='<div style="font-size:11px;font-weight:700;color:var(--ipb-text-muted);text-transform:uppercase;letter-spacing:.08em;margin:12px 0 6px;">Meldingen vandaag</div>';
-    const todayE=entries.filter(function(e){return !e._carryover;});
-    if(!todayE.length){h+='<div style="text-align:center;padding:12px;color:var(--ipb-text-light);font-size:13px;">Nog geen meldingen vandaag</div>';}
-    else{[...todayE].reverse().forEach(function(item){
-      const col=OP_STATUS_COLORS[item.status]||'#8a9abf';
-      h+='<div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid #f0f2f7;">'
-        +'<div style="background:'+col+';color:#fff;font-size:11px;font-weight:700;padding:2px 7px;border-radius:20px;white-space:nowrap;">'+item.timeVal+'</div>'
-        +'<div style="flex:1;"><div style="font-size:13px;font-weight:600;color:'+col+';">'+(OP_STATUS_LABELS[item.status]||item.status)+'</div>'
-        +'<div style="font-size:11px;color:#8a9abf;">'+(item.operator||'')+(item.note?' · '+item.note:'')+'</div></div></div>';
-    });}
-
-    body.innerHTML = h;
-  }, {onlyOnce: true});
+  });
 };
-
 window.closeTimelineModal = function() {
   document.getElementById('timeline-modal-bg').style.display = 'none';
 };
