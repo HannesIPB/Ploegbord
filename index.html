@@ -1637,21 +1637,37 @@ function renderLines() {
     // Zo is de tegel altijd correct, ongeacht retroactieve aanpassingen
     const nowMs2 = Date.now();
     let st = opItem ? (opItem.status||'') : '';
-    // Status van het huidige moment: laad alle historiek, sorteer op ms, neem laatste vóór nu
+    // Status + operator van het huidige moment: laad alle historiek, sorteer op ms,
+    // neem laatste entry vóór nu — zowel status als operatornaam komen uit DEZELFDE entry
     const hist2 = (opHistoryData[line] || []).map(function(e) {
       const ms = e._ms != null ? e._ms : entryToMs(e);
-      return ms ? {ms, status: e.status} : null;
+      return ms ? {ms, status: e.status, operator: e.operator, timeVal: e.timeVal} : null;
     }).filter(Boolean).sort((a,b) => a.ms - b.ms);
+    let curEntry = null;
     for (let hi = hist2.length - 1; hi >= 0; hi--) {
       if (hist2[hi].ms <= nowMs2 && hist2[hi].status) {
         st = hist2[hi].status;
+        curEntry = hist2[hi];
         break;
       }
     }
     const stColor = st ? (OP_STATUS_COLORS[st]||'#8a9abf') : '#8a9abf';
     const stLabel = st ? (OP_STATUS_LABELS[st]||st) : 'Geen melding';
-    const opName = opItem && opItem.operator ? opItem.operator : '';
-    const opTime = (opItem && opItem.time && opItem.time !== 'undefined') ? opItem.time : '';
+    // Operatornaam: gebruik de entry die ook de status bepaalt, met operator-status als fallback
+    let opName = (curEntry && curEntry.operator) ? curEntry.operator
+                  : (opItem && opItem.operator ? opItem.operator : '');
+    let opTimeOverride = null;
+    // IDE: operator-ide-config kan recentere naam/tijd bevatten (bv. enkel toerental aangepast)
+    if (line === 'IDE') {
+      const ideC = ideConfigData || {};
+      if (ideC.operator) {
+        opName = ideC.operator;
+        opTimeOverride = ideC.time || null;
+      }
+    }
+    const opTime = opTimeOverride ? opTimeOverride
+                  : (curEntry && curEntry.timeVal) ? curEntry.timeVal
+                  : (opItem && opItem.time && opItem.time !== 'undefined') ? opItem.time : '';
 
     const div = document.createElement('div');
     div.id = 'lt-' + line;
@@ -1728,11 +1744,27 @@ function renderLines() {
     div.appendChild(opRow);
     if (line === 'IDE') {
       const ideCfg = ideConfigData || {};
-      const toerental = ideCfg.toerental || '0';
+      // Zoek meest recente historiek-entry (<=nu) met een toerentalwaarde — zelfde bron als operatorspagina
+      let toerental = null;
+      const histIde = (opHistoryData['IDE'] || []).slice().sort((a,b) => {
+        const am = a._ms != null ? a._ms : entryToMs(a);
+        const bm = b._ms != null ? b._ms : entryToMs(b);
+        return (am||0) - (bm||0);
+      });
+      for (let ti = histIde.length - 1; ti >= 0; ti--) {
+        const tEntry = histIde[ti];
+        const tMs = tEntry._ms != null ? tEntry._ms : entryToMs(tEntry);
+        if (tMs != null && tMs <= nowMs2 && tEntry.toerental !== undefined && tEntry.toerental !== '' && tEntry.toerental !== null) {
+          toerental = tEntry.toerental; break;
+        }
+      }
+      if (toerental === null) toerental = ideCfg.toerental || '0';
+      // Bij panne/problemen/geen: toon 0 (consistent met output extruder)
+      if (st==='panne'||st==='problemen'||st==='geen') toerental = '0';
       const ideRow = document.createElement('div');
       ideRow.style.cssText = 'display:flex;align-items:baseline;gap:4px;margin-bottom:5px;';
       const ideVal = document.createElement('span');
-      ideVal.style.cssText = 'font-size:18px;font-weight:800;color:' + (ideCfg.toerental ? stColor : '#b0bcd8') + ';line-height:1;';
+      ideVal.style.cssText = 'font-size:18px;font-weight:800;color:' + (toerental!=='0' ? stColor : '#b0bcd8') + ';line-height:1;';
       ideVal.textContent = toerental;
       const ideUnit = document.createElement('span');
       ideUnit.style.cssText = 'font-size:10px;font-weight:600;color:#8a9abf;';
@@ -2122,6 +2154,16 @@ function buildSpeedChart(container, entries, height, extraPoint) {
   container.appendChild(wrapper);
 }
 
+
+// ===== PERSISTENTE PLOEGCHEFNAAM (P4) =====
+function getSavedChiefName() {
+  try { return localStorage.getItem('ipb_p4_chief_name') || ''; } catch(e) { return ''; }
+}
+function saveChiefName(name) {
+  if (!name) return;
+  try { localStorage.setItem('ipb_p4_chief_name', name); } catch(e) {}
+}
+
 // ===== P4 INLINE STATUS INGAVE =====
 var p4ActiveLine = null;
 var p4SelStatus = null;
@@ -2174,7 +2216,7 @@ function renderP4Panel(line, panel, cardDiv) {
   const nameInp = document.createElement('input');
   nameInp.type='text'; nameInp.id='p4-name-'+line;
   nameInp.placeholder='Naam ploegchef';
-  nameInp.value=(state.shift&&state.shift.chief)||'';
+  nameInp.value=getSavedChiefName()||(state.shift&&state.shift.chief)||'';
   nameInp.style.cssText='flex:1;min-width:100px;padding:5px 8px;border:1.5px solid #b0bcd8;border-radius:6px;font-size:12px;';
   nameInp.onclick=function(e){e.stopPropagation();};
   const snelInp = document.createElement('input');
@@ -2389,7 +2431,8 @@ function saveP4Status(line, panel) {
   let startDate = panel._startDate || today;
   let endTime = panel._endTime;
   let endDate = panel._endDate || today;
-  let opName = document.getElementById('p4-name-'+line).value.trim() || 'Ploegchef';
+  let opName = document.getElementById('p4-name-'+line).value.trim() || getSavedChiefName() || 'Ploegchef';
+  saveChiefName(opName);
   let note = document.getElementById('p4-note-'+line).value.trim();
   let snelheid = document.getElementById('p4-snelheid-'+line).value.trim();
 
