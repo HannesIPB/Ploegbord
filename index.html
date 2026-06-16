@@ -1938,8 +1938,19 @@ function initActiveSessionsListener() {
 
     // Toon gebruikers als horizontale pills, geordend per afdeling
     const deptOrder2 = ['Ploegchef','P1','P4','Converting','Algemeen'];
-    const groups = {};
+
+    // Dedupliceer op naam: bij meerdere sessies van dezelfde persoon → meest recente bijhouden
+    const byName = {};
     active.forEach(function([k, s]) {
+      const n = s.name;
+      if (!byName[n] || (s.loginAt||0) > (byName[n].loginAt||0)) {
+        byName[n] = s;
+      }
+    });
+    const deduped = Object.values(byName);
+
+    const groups = {};
+    deduped.forEach(function(s) {
       const d = s.dept || 'Algemeen';
       if (!groups[d]) groups[d] = [];
       groups[d].push(s);
