@@ -245,15 +245,105 @@ textarea.fi{height:80px;resize:vertical;}
 .item-photo-del{position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.5);color:#fff;border:none;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;}
 .photo-btn{padding:2px 8px;border-radius:4px;border:1px solid var(--ipb-green);background:var(--ipb-green-bg);color:var(--ipb-green-dark);cursor:pointer;font-size:11px;font-weight:600;}
 .photo-btn:hover{background:var(--ipb-green);color:#fff;}
+= LOGIN OVERLAY (PIN-aanmelding) ===== */
+#login-overlay{position:fixed;inset:0;background:rgba(26,46,90,.94);z-index:99999;display:none;align-items:center;justify-content:center;backdrop-filter:blur(2px);}
+#login-card{background:#fff;border-radius:16px;padding:28px;max-width:420px;width:92%;box-shadow:0 12px 48px rgba(0,0,0,.35);}
+#login-card h2{margin:0 0 4px;color:#1a2e5a;text-align:center;font-size:18px;}
+#login-card .login-sub{text-align:center;color:#8a9abf;font-size:12px;margin-bottom:18px;}
+.login-names{max-height:60vh;overflow-y:auto;padding-right:2px;}
+.login-dept-group{margin-bottom:14px;}
+.login-dept-hdr{font-size:11px;font-weight:800;color:#1E3A6E;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;padding-bottom:4px;border-bottom:2px solid #edf3fe;}
+.login-dept-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:6px;}
+.login-dept-btn{padding:22px 10px;border:2px solid #dde3f0;border-radius:12px;background:#f4f6fb;font-size:16px;font-weight:800;color:#1E3A6E;cursor:pointer;transition:.15s;}
+.login-dept-btn:hover{border-color:#1E3A6E;background:#edf3fe;transform:translateY(-1px);}
+.login-back-btn{display:block;width:100%;margin-top:14px;padding:10px;border:none;background:none;color:#8a9abf;font-size:12px;font-weight:700;cursor:pointer;}
+.login-back-btn:hover{color:#1E3A6E;}
+#login-names-hdr{margin:0 0 4px;color:#1a2e5a;text-align:center;font-size:18px;}
+.login-dept-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
+.login-name-btn{padding:14px 8px;border:2px solid #dde3f0;border-radius:10px;background:#f4f6fb;font-size:14px;font-weight:700;color:#1a2e5a;cursor:pointer;transition:.15s;position:relative;}
+.login-name-btn:hover{border-color:#1E3A6E;background:#edf3fe;}
+.login-name-btn .new-dot{position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%;background:#6DB33F;}
+.login-add-btn{padding:10px 8px;border:2px dashed #b0bcd8;border-radius:10px;background:none;font-size:12px;font-weight:600;color:#8a9abf;cursor:pointer;transition:.15s;}
+.login-add-btn:hover{border-color:#1E3A6E;color:#1E3A6E;}
+.pin-name-hdr{text-align:center;font-size:16px;font-weight:800;color:#1a2e5a;margin-bottom:6px;}
+.pin-dots{display:flex;justify-content:center;gap:14px;margin:14px 0;}
+.pin-dot{width:16px;height:16px;border-radius:50%;border:2px solid #1E3A6E;transition:.1s;}
+.pin-dot.filled{background:#1E3A6E;}
+.pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.pin-btn{padding:16px;font-size:20px;font-weight:700;border:2px solid #dde3f0;border-radius:10px;background:#f4f6fb;color:#1a2e5a;cursor:pointer;}
+.pin-btn:hover{background:#edf3fe;border-color:#1E3A6E;}
+.pin-btn.wide{font-size:13px;font-weight:600;color:#8a9abf;}
+#login-card.shake{animation:loginshake .35s;}
+@keyframes loginshake{0%,100%{transform:translateX(0);}25%{transform:translateX(-8px);}75%{transform:translateX(8px);}}
+.pin-error{text-align:center;color:#e24b4a;font-size:12px;font-weight:700;height:16px;margin-top:4px;}
+
+/* Gebruikersbadge rechtsboven */
+/* user-badge-area styles are inline */
 </style>
 </head>
 <body>
+
+<!-- ===== LOGIN OVERLAY (PIN-aanmelding voor traceerbaarheid) ===== -->
+<div id="login-overlay" onclick="event.stopPropagation()">
+  <div id="login-card" onclick="event.stopPropagation()">
+    <div id="login-step-dept">
+      <h2>Wie ben je?</h2>
+      <div class="login-sub">Bij welke afdeling werk je?</div>
+      <div class="login-dept-grid" id="login-dept-buttons">
+        <button class="login-dept-btn" onclick="window.showP1SubStep&&window.showP1SubStep()">P1</button>
+        <button class="login-dept-btn" onclick="window.selectLoginDept&&window.selectLoginDept('P4')">P4</button>
+        <button class="login-dept-btn" onclick="window.selectLoginDept&&window.selectLoginDept('Converting')">Converting</button>
+        <button class="login-dept-btn" onclick="window.selectLoginDept&&window.selectLoginDept('Algemeen')">Algemeen</button>
+      </div>
+    </div>
+    <div id="login-step-names" style="display:none;">
+      <h2 id="login-names-hdr">—</h2>
+      <div class="login-sub">Kies je naam om aan te melden</div>
+      <div class="login-names" id="login-names"></div>
+      <button class="login-back-btn" onclick="backToDeptSelect()">← Andere afdeling</button>
+    </div>
+    <div id="login-step-pin" style="display:none;">
+      <div class="pin-name-hdr" id="login-pin-name">—</div>
+      <div class="login-sub" id="login-pin-sub">Voer je PIN-code in</div>
+      <div class="pin-dots">
+        <div class="pin-dot" id="pin-dot-0"></div>
+        <div class="pin-dot" id="pin-dot-1"></div>
+        <div class="pin-dot" id="pin-dot-2"></div>
+        <div class="pin-dot" id="pin-dot-3"></div>
+      </div>
+      <div class="pin-error" id="pin-error"></div>
+      <div class="pin-pad">
+        <button class="pin-btn" onclick="pinDigit('1')">1</button>
+        <button class="pin-btn" onclick="pinDigit('2')">2</button>
+        <button class="pin-btn" onclick="pinDigit('3')">3</button>
+        <button class="pin-btn" onclick="pinDigit('4')">4</button>
+        <button class="pin-btn" onclick="pinDigit('5')">5</button>
+        <button class="pin-btn" onclick="pinDigit('6')">6</button>
+        <button class="pin-btn" onclick="pinDigit('7')">7</button>
+        <button class="pin-btn" onclick="pinDigit('8')">8</button>
+        <button class="pin-btn" onclick="pinDigit('9')">9</button>
+        <button class="pin-btn wide" onclick="backToNames()">Terug</button>
+        <button class="pin-btn" onclick="pinDigit('0')">0</button>
+        <button class="pin-btn wide" onclick="pinBackspace()">⌫</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="user-badge-area" style="position:fixed;top:10px;right:10px;z-index:9000;display:none;align-items:center;gap:6px;">
+  <div id="user-badge" onclick="toggleUserMenu()" style="background:#1E3A6E;color:#fff;font-size:12px;font-weight:700;padding:6px 12px;border-radius:20px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.15);">👤 <span id="user-badge-name"></span></div>
+  <button id="user-logout-btn" onclick="logoutUser()" title="Uitloggen" style="background:#e24b4a;color:#fff;border:none;font-size:12px;font-weight:700;padding:6px 12px;border-radius:20px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.15);">↩ Uitloggen</button>
+</div>
+<div id="user-menu" style="position:fixed;top:46px;right:10px;z-index:9001;background:#fff;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.2);display:none;flex-direction:column;overflow:hidden;min-width:160px;">
+  <button onclick="openChangePin()" style="padding:10px 14px;border:none;background:none;text-align:left;font-size:13px;font-weight:600;color:#1a2e5a;cursor:pointer;">🔑 PIN wijzigen</button>
+</div>
 
 <div class="loading" id="loading">
   <img src="data:image/png;base64,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" alt="IPB" style="height:80px;width:auto;margin-bottom:24px;">
   <div class="lbar"><div class="lbar-fill"></div></div>
 </div>
 
+<div id="app-content" style="display:none">
 <div class="header">
   <div style="display:flex;align-items:center;gap:12px;">
     <img src="data:image/png;base64,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" alt="IPB Logo" style="height:44px;width:auto;">
@@ -347,6 +437,12 @@ textarea.fi{height:80px;resize:vertical;}
   <div class="lines-body" id="lines-body"></div>
 </div>
 
+<div class="card" id="active-users-card" style="margin-bottom:14px;">
+  <div class="ch">
+    <div class="chl"><div class="ci" style="background:#edf3fe;">👥</div><span class="ct">Actieve gebruikers</span><span class="cc" id="cnt-active">0</span></div>
+  </div>
+  <div id="list-active" style="padding:10px 14px 14px;display:flex;flex-wrap:wrap;gap:10px;min-height:20px;"></div>
+</div>
 <div class="g3">
     <div class="card"><div class="ch"><div class="chl"><div class="ci" style="background:#fef1f1;">🛡</div><span class="ct">Veiligheid</span><span class="cc" id="cnt-safety">0</span></div><button class="ab" onclick="openModal('safety')">+</button></div><div class="cb" id="list-safety"></div></div>
     <div class="card"><div class="ch"><div class="chl"><div class="ci" style="background:#edf3fe;">⚙</div><span class="ct">Machines</span><span class="cc" id="cnt-machine">0</span></div><button class="ab" onclick="openModal('machine')">+</button></div><div class="cb" id="list-machine"></div></div>
@@ -384,6 +480,21 @@ textarea.fi{height:80px;resize:vertical;}
       </div>
       <div id="archive-list"></div>
     </div>
+  </div>
+
+  <!-- Lijnincidenten per lijn -->
+  <div class="card" style="margin-top:14px;">
+    <div class="ch">
+      <div class="chl"><div class="ci" style="background:#fef3e2;">🔴</div><span class="ct">Lijnincidenten — <span id="li-dept-lbl">P1 — Productie</span></span><span class="cc" id="cnt-li">0</span></div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="date" id="li-from" style="padding:4px 8px;border:1px solid #dde3f0;border-radius:6px;font-size:12px;">
+        <span style="font-size:12px;color:var(--ipb-text-muted);">→</span>
+        <input type="date" id="li-to" style="padding:4px 8px;border:1px solid #dde3f0;border-radius:6px;font-size:12px;">
+        <button onclick="renderLineIncidents()" style="padding:4px 10px;border:1px solid #dde3f0;border-radius:6px;font-size:12px;cursor:pointer;">Filter</button>
+        <button onclick="exportLineIncidentsExcel()" style="padding:4px 10px;border:1px solid #6DB33F;border-radius:6px;font-size:12px;cursor:pointer;background:#eef7e9;color:#2a6018;">📥 Excel</button>
+      </div>
+    </div>
+    <div class="cb" id="li-list" style="padding:10px 14px;"></div>
   </div>
 </div>
 
@@ -766,11 +877,622 @@ textarea.fi{height:80px;resize:vertical;}
 </div>
 <div class="toast" id="toast"></div>
 
+
+</div><!-- #app-content -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, set, push, remove, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
+
+function showToast(msg) {
+  let t = document.getElementById('mini-toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'mini-toast';
+    t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1E3A6E;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:700;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,.25);';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.display = 'block';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(function(){ t.style.display='none'; }, 2200);
+}
+
+// ===========================================================
+// ===== PIN-AANMELDING (zelf gekozen PIN, traceerbaarheid) =====
+// ===========================================================
+// Personeelslijst (initiële seed-data). Wordt bij eerste gebruik
+// naar Firebase geschreven onder 'personnel/{afdeling}/{sleutel}'.
+// Voeg je later iemand toe via "+ Naam toevoegen" in het aanmeldscherm
+// — dat verschijnt automatisch hier niet meer, want het zit dan in Firebase.
+const PERSONNEL_SEED = {
+  P1: ['Abdifatah Hassan Jimale','Joseph Spatola','Sam Heyerick','Stijn Van Hoe','Khan Obaidullah Shinwari','Sebastien Brutin','Mathieu Verplancke','Peter Holvoet','Peter Vaernewyck','Sven Van Styvendael','Younes Boulaghmoudi','Ahmet Camlica','Bartek Kwasny','Dylan Derycke','Johan Tomme','Kenneth Van Simaeys','Storm Vandenberghe','Tony Rickaert','Mohamed Hassan Malin','Rabah Aberkane'],
+  P4: ['Christ Messely','Andrei Zaharia Florin','Maksym Bondarenko','Sandro Vanfleteren'],
+  Converting: ['Beata Miroszka','Blazej Pudrzynski','David Tremerie','Geert Callens','Hans Huys','Jolanta Pajerska','Luc Farasyn','Marta Kurkowska','Peter Andrew','Steven De Rycke','Tesfaldet Debesay','Ali Alfaaour'],
+  Ploegchef: ['Eddy Sulmont','Aeneas Demeulemeester','Edwin Kerkhove','Mohamed Abdellah','Jens Quequin'],
+  Algemeen: ['Danielle Beirlaen','Pascal De Boever','Hannes Bruyneel','Yauheni Alioshkin','Manal Wadi','Tom De Backer','Dieter Oplinus','Frédéric Stofferis']
+};
+// Tom De Backer had al een PIN-code (7053) ingevuld in het Excel-bestand —
+// die wordt eenmalig overgenomen zodat hij meteen kan inloggen.
+const PERSONNEL_SEED_PINS = { 'Tom De Backer': '7053' };
+const DEPT_ORDER = ['P1','Ploegchef','P4','Converting','Algemeen'];
+
+function personnelKey(name) {
+  return name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+}
+async function sha256Hex(str) {
+  // crypto.subtle vereist HTTPS of localhost; bij file:// of HTTP gebruiken we een fallback
+  if (window.crypto && window.crypto.subtle) {
+    try {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+      return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+    } catch(e) {}
+  }
+  // Eenvoudige deterministsche fallback (geen cryptografische garanties, enkel voor traceerbaarheid)
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) h = ((h << 5) + h) ^ str.charCodeAt(i);
+  return 'f' + (h >>> 0).toString(16).padStart(7,'0') + str.length.toString(16).padStart(4,'0');
+}
+
+let PERSONNEL = {P1:[],P4:[],Converting:[],Ploegchef:[],Algemeen:[]};
+let _personnelLoaded = false;
+// Vul PERSONNEL direct vanuit PERSONNEL_SEED als fallback zolang Firebase nog laadt
+(function() {
+  DEPT_ORDER.forEach(function(d) {
+    PERSONNEL[d] = (PERSONNEL_SEED[d]||[]).map(function(name) {
+      return {key:personnelKey(name), name:name, pinHash:null};
+    });
+  });
+})();
+
+function initPersonnel() {
+  onValue(ref(db,'personnel'), async function(snap) {
+    let val = snap.val();
+    if (!val) {
+      // Eerste keer: seed-data wegschrijven
+      const seed = {};
+      for (const d of DEPT_ORDER) {
+        seed[d] = {};
+        for (const name of PERSONNEL_SEED[d]) {
+          const entry = {name: name};
+          if (PERSONNEL_SEED_PINS[name]) entry.pinHash = await sha256Hex(PERSONNEL_SEED_PINS[name]);
+          seed[d][personnelKey(name)] = entry;
+        }
+      }
+      await set(ref(db,'personnel'), seed);
+      return; // onValue vuurt opnieuw met de geschreven data
+    }
+    // Eenmalige correctie: Dieter Oplinus stond initieel onder Converting,
+    // maar hoort bij Algemeen. Verplaats indien nog aanwezig onder Converting.
+    if (val.Converting) {
+      const dieterKey = personnelKey('Dieter Oplinus');
+      if (val.Converting[dieterKey]) {
+        const dieterData = val.Converting[dieterKey];
+        await update(ref(db,'personnel'), {
+          ['Algemeen/'+dieterKey]: dieterData,
+          ['Converting/'+dieterKey]: null
+        });
+        return; // onValue vuurt opnieuw met de bijgewerkte data
+      }
+    }
+
+    // Eenmalige migratie: ploegchefs van P1 verplaatsen van Algemeen naar Ploegchef
+    const ploegchefNames = ['eddy_sulmont','aeneas_demeulemeester','edwin_kerkhove','mohamed_abdellah','jens_quequin'];
+    if (val.Algemeen) {
+      const toMove = {};
+      let needsMigration = false;
+      ploegchefNames.forEach(function(k) {
+        if (val.Algemeen[k]) {
+          toMove['Ploegchef/'+k] = val.Algemeen[k];
+          toMove['Algemeen/'+k] = null;
+          needsMigration = true;
+        }
+      });
+      if (needsMigration) {
+        await update(ref(db,'personnel'), toMove);
+        return; // onValue vuurt opnieuw
+      }
+    }
+
+    // Eenmalige toevoeging: Frédéric Stofferis aan Algemeen
+    if (val.Algemeen) {
+      var fredKey = personnelKey('Frédéric Stofferis');
+      if (!val.Algemeen[fredKey]) {
+        await set(ref(db,'personnel/Algemeen/'+fredKey), {name:'Frédéric Stofferis'});
+      }
+    }
+    DEPT_ORDER.forEach(function(d) {
+      PERSONNEL[d] = Object.entries(val[d]||{}).map(function([k,v]){
+        return {key:k, name:v.name, pinHash:v.pinHash||null};
+      }).sort(function(a,b){ return a.name.localeCompare(b.name); });
+    });
+    _personnelLoaded = true;
+    if (_loginDept && document.getElementById('login-step-names').style.display !== 'none') {
+      renderLoginNames();
+    }
+  }, function(err) {
+    console.warn('Personnel Firebase error:', err);
+    _personnelLoaded = true; // laat aanmeldscherm tonen op basis van seed-data
+  });
+}
+function findPersonByName(name) {
+  for (const d of DEPT_ORDER) {
+    const p = PERSONNEL[d].find(function(x){ return x.name === name; });
+    if (p) return Object.assign({dept:d}, p);
+  }
+  return null;
+}
+function savePinHash(person, hash) {
+  return update(ref(db,'personnel/'+person.dept+'/'+person.key), {pinHash: hash});
+}
+
+
+// ===== ACTIEVE SESSIES (wie is aangemeld?) =====
+const DEVICE_KEY = 'ipb_device_key';
+function getDeviceKey() {
+  try {
+    let k = localStorage.getItem(DEVICE_KEY);
+    if (!k) {
+      k = 'dev_' + Math.random().toString(36).substr(2,9) + '_' + Date.now();
+      localStorage.setItem(DEVICE_KEY, k);
+    }
+    return k;
+  } catch(e) { return 'unknown'; }
+}
+function writeActiveSession(name, dept, shiftEnd) {
+  const key = getDeviceKey();
+  set(ref(db, 'active-sessions/' + key), {
+    name: name, dept: dept,
+    loginAt: Date.now(),
+    shiftEnd: shiftEnd || null
+  }).catch(function(){});
+}
+function removeActiveSession() {
+  const key = getDeviceKey();
+  remove(ref(db, 'active-sessions/' + key)).catch(function(){});
+}
+// Verwijder sessie automatisch als venster gesloten wordt
+window.addEventListener('beforeunload', function() { removeActiveSession(); });
+
+const SESSION_KEY = 'ipb_session_v2';
+// Afdelingen die automatisch uitloggen bij ploegwissel
+const AUTO_LOGOUT_DEPTS = ['P1','Ploegchef','P4','Converting'];
+
+// Bereken het tijdstip van de eerstvolgende ploegwissel vanaf 'now'
+// Weekdagen (ma-vr): 05:00 | 13:00 | 21:00
+// Weekend (za-zo):   05:00 | 17:00
+function nextShiftChange(now) {
+  const d = new Date(now);
+  const day = d.getDay(); // 0=zo,1=ma,...,6=za
+  const totMins = d.getHours() * 60 + d.getMinutes();
+  const isWeekend = (day === 0 || day === 6);
+  const changes = isWeekend ? [5*60, 17*60] : [5*60, 13*60, 21*60];
+  // Zoek volgende wissel vandaag
+  for (const c of changes) {
+    if (totMins < c) {
+      const r = new Date(d);
+      r.setHours(Math.floor(c/60), c%60, 0, 0);
+      return r.getTime();
+    }
+  }
+  // Geen wissel meer vandaag → morgen om 05:00
+  const tomorrow = new Date(d);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(5, 0, 0, 0);
+  return tomorrow.getTime();
+}
+
+function getSession() {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    if (!s.name || !s.ts) return null;
+    // Auto-logout bij ploegwissel enkel voor operatoren/ploegchefs
+    if (AUTO_LOGOUT_DEPTS.includes(s.dept)) {
+      if (!s.shiftEnd || Date.now() >= s.shiftEnd) return null;
+    } else {
+      // Algemeen / Hannes: sessieduur op basis van naam + tijdstip van aanmelden
+      var dur = sessionDurationMs(s.name, s.dept);
+      if (dur && (Date.now() - s.ts) > dur) return null;
+    }
+    return s;
+  } catch(e) { return null; }
+}
+function sessionDurationMs(name, dept) {
+  // Speciale sessie voor Hannes Bruyneel: altijd 2 uur
+  if (name === 'Hannes Bruyneel') {
+    // Weekdagen: open tot 19:00 na inloggen, daarna 2 uur per sessie
+    var nowH = new Date();
+    var dayH = nowH.getDay();
+    var isWeekendH = dayH === 0 || dayH === 6;
+    if (!isWeekendH) {
+      var cutoff = new Date(nowH);
+      cutoff.setHours(19, 0, 0, 0);
+      if (nowH < cutoff) return cutoff.getTime() - nowH.getTime(); // tot 19:00
+      else return 2 * 3600000; // na 19:00 → 2u
+    }
+    return 2 * 3600000; // weekend → 2u
+  }
+  if (AUTO_LOGOUT_DEPTS.includes(dept)) return null; // gebruikt shiftEnd, niet vaste duur
+  // Algemeen: 18u tijdens weekdagen vóór 18:00, anders 30 minuten
+  const now = new Date();
+  const day = now.getDay(); // 0=zo, 6=za
+  const isWeekend = day === 0 || day === 6;
+  const isAfterEvening = now.getHours() >= 18;
+  if (!isWeekend && !isAfterEvening) return 18 * 3600000; // weekdag overdag → 18u
+  return 30 * 60000; // weekend of avond → 30 min
+}
+function setSession(name, dept) {
+  const shiftEnd = AUTO_LOGOUT_DEPTS.includes(dept) ? nextShiftChange(Date.now()) : null;
+  try { localStorage.setItem(SESSION_KEY, JSON.stringify({name, dept, ts:Date.now(), shiftEnd})); } catch(e) {}
+  writeActiveSession(name, dept, shiftEnd);
+}
+function clearSession() {
+  try { localStorage.removeItem(SESSION_KEY); } catch(e) {}
+  removeActiveSession();
+}
+function getCurrentUserName() {
+  const s = getSession();
+  return s ? s.name : null;
+}
+function getCurrentUserDept() {
+  const s = getSession();
+  return s ? s.dept : null;
+}
+// Controleer elke minuut of de ploeg voorbij is
+setInterval(function() {
+  if (!getSession() && document.getElementById('login-overlay').style.display === 'none') {
+    clearSession();
+    updateUserBadge();
+    var ac = document.getElementById('app-content');
+    if (ac) ac.style.display = 'none';
+    showLoginOverlay();
+  }
+}, 30000);
+
+// ===== Login overlay rendering =====
+var _loginDept = null;
+
+function showLoginOverlay() {
+  document.getElementById('login-step-dept').style.display = 'block';
+  document.getElementById('login-step-names').style.display = 'none';
+  document.getElementById('login-step-pin').style.display = 'none';
+  document.getElementById('login-overlay').style.display = 'flex';
+  renderLoginDeptButtons();
+}
+function renderLoginDeptButtons() {
+  var el = document.getElementById('login-dept-buttons');
+  if (!el) return;
+  el.innerHTML = '';
+  ['P1','P4','Converting','Algemeen'].forEach(function(dept) {
+    var b = document.createElement('button');
+    b.className = 'login-dept-btn';
+    b.textContent = dept;
+    b.onclick = function(){
+      if (dept === 'P1') { window.showP1SubStep && window.showP1SubStep(); }
+      else { window.selectLoginDept && window.selectLoginDept(dept); }
+    };
+    el.appendChild(b);
+  });
+}
+window.renderLoginDeptButtons = renderLoginDeptButtons;
+window.showP1SubStep = function showP1SubStep() {
+  // Tussenstap: Ploegchef of Operator?
+  const el = document.getElementById('login-dept-buttons');
+  el.innerHTML = '';
+  document.getElementById('login-card').querySelector('h2').textContent = 'P1 — Wie ben je?';
+  [['Operator','P1'],['Ploegchef','Ploegchef']].forEach(function(pair) {
+    const b = document.createElement('button');
+    b.className = 'login-dept-btn';
+    b.textContent = pair[0];
+    b.onclick = function(){ selectLoginDept(pair[1]); };
+    el.appendChild(b);
+  });
+  const backBtn = document.createElement('button');
+  backBtn.className = 'login-back-btn';
+  backBtn.textContent = '← Andere afdeling';
+  backBtn.onclick = function(){
+    document.getElementById('login-card').querySelector('h2').textContent = 'Wie ben je?';
+    renderLoginDeptButtons();
+  };
+  document.getElementById('login-step-dept').appendChild(backBtn);
+}
+window.selectLoginDept = function selectLoginDept(dept) {
+  _loginDept = dept;
+  document.getElementById('login-step-dept').style.display = 'none';
+  document.getElementById('login-step-names').style.display = 'block';
+  const hdr = document.getElementById('login-names-hdr');
+  hdr.textContent = dept === 'Ploegchef' ? 'P1 — Ploegchef' : dept;
+  renderLoginNames();
+}
+window.backToDeptSelect = function() {
+  document.getElementById('login-card').querySelector('h2').textContent = 'Wie ben je?';
+  document.getElementById('login-step-dept').style.display = 'block';
+  document.getElementById('login-step-names').style.display = 'none';
+  _loginDept = null;
+  renderLoginDeptButtons();
+};
+function renderLoginNames() {
+  if (!_loginDept) return;
+  const namesEl = document.getElementById('login-names');
+  namesEl.innerHTML = '';
+  const grid = document.createElement('div');
+  grid.className = 'login-dept-grid';
+  // Gebruik PERSONNEL_SEED als fallback als PERSONNEL leeg is
+  var nameList = PERSONNEL[_loginDept];
+  if (!nameList || !nameList.length) {
+    nameList = (PERSONNEL_SEED[_loginDept]||[]).map(function(n){ return {key:personnelKey(n),name:n,pinHash:null}; });
+  }
+  nameList.forEach(function(p) {
+    const b = document.createElement('button');
+    b.className = 'login-name-btn';
+    b.textContent = p.name;
+    if (!p.pinHash) {
+      const dot = document.createElement('span');
+      dot.className = 'new-dot';
+      dot.title = 'Nog geen PIN ingesteld';
+      b.appendChild(dot);
+    }
+    b.onclick = function(){ startLoginForPerson(Object.assign({dept:_loginDept}, p)); };
+    grid.appendChild(b);
+  });
+  const addBtn = document.createElement('button');
+  addBtn.className = 'login-add-btn';
+  addBtn.textContent = '+ Naam toevoegen';
+  addBtn.onclick = function(){ addPersonToDept(_loginDept); };
+  grid.appendChild(addBtn);
+  namesEl.appendChild(grid);
+}
+function addPersonToDept(dept) {
+  const name = prompt('Naam van de nieuwe collega (' + dept + '):');
+  if (!name || !name.trim()) return;
+  const trimmed = name.trim();
+  const key = personnelKey(trimmed);
+  if (PERSONNEL[dept].some(function(p){ return p.key===key; })) {
+    alert('Deze naam staat al in de lijst.');
+    return;
+  }
+  set(ref(db,'personnel/'+dept+'/'+key), {name: trimmed}).then(function(){
+    showToast(trimmed + ' toegevoegd ✓');
+  });
+}
+
+// ===== PIN-stappen (state machine) =====
+let _pinMode = null;       // 'login-verify' | 'login-create' | 'login-confirm' | 'change-current' | 'change-new' | 'change-confirm'
+let _pinTarget = null;      // persoon waarop de huidige flow van toepassing is
+let _pinTemp = null;        // tijdelijk onthouden PIN (voor bevestigingsstap)
+let _loginPin = '';
+
+function startLoginForPerson(person) {
+  _pinTarget = person;
+  _pinMode = person.pinHash ? 'login-verify' : 'login-create';
+  enterPinStep();
+}
+function enterPinStep() {
+  _loginPin = ''; _pinTemp = (_pinMode==='login-confirm'||_pinMode==='change-confirm') ? _pinTemp : null;
+  document.getElementById('login-step-names').style.display = 'none';
+  document.getElementById('login-step-pin').style.display = 'block';
+  document.getElementById('pin-error').textContent = '';
+  const hdr = document.getElementById('login-pin-name');
+  const sub = document.getElementById('login-pin-sub');
+  switch(_pinMode) {
+    case 'login-verify':
+      hdr.textContent = _pinTarget.name;
+      sub.textContent = 'Voer je PIN-code in';
+      break;
+    case 'login-create':
+      hdr.textContent = _pinTarget.name;
+      sub.textContent = 'Welkom! Maak een nieuwe PIN-code (4 cijfers)';
+      break;
+    case 'login-confirm':
+      hdr.textContent = _pinTarget.name;
+      sub.textContent = 'Bevestig je nieuwe PIN-code';
+      break;
+    case 'change-current':
+      hdr.textContent = getCurrentUserName();
+      sub.textContent = 'Voer je huidige PIN-code in';
+      break;
+    case 'change-new':
+      hdr.textContent = getCurrentUserName();
+      sub.textContent = 'Voer een nieuwe PIN-code in';
+      break;
+    case 'change-confirm':
+      hdr.textContent = getCurrentUserName();
+      sub.textContent = 'Bevestig je nieuwe PIN-code';
+      break;
+  }
+  updatePinDots();
+}
+window.backToNames = function() {
+  // Bij 'PIN wijzigen' (gebruiker is al aangemeld): annuleer en sluit het venster
+  if (_pinMode && _pinMode.indexOf('change-') === 0) {
+    document.getElementById('login-overlay').style.display = 'none';
+    _pinMode = null; _pinTarget = null; _pinTemp = null;
+    return;
+  }
+  document.getElementById('login-step-names').style.display = 'block';
+  document.getElementById('login-step-pin').style.display = 'none';
+  _pinMode = null; _pinTarget = null; _pinTemp = null;
+};
+function updatePinDots() {
+  for (let i=0; i<4; i++) {
+    document.getElementById('pin-dot-'+i).classList.toggle('filled', i < _loginPin.length);
+  }
+}
+window.pinDigit = function(d) {
+  if (_loginPin.length >= 4) return;
+  _loginPin += d;
+  updatePinDots();
+  if (_loginPin.length === 4) {
+    checkPin().catch(function(err) {
+      console.error('checkPin error:', err);
+      pinError('Technische fout, probeer opnieuw');
+    });
+  }
+};
+window.pinBackspace = function() {
+  _loginPin = _loginPin.slice(0, -1);
+  document.getElementById('pin-error').textContent = '';
+  updatePinDots();
+};
+function pinError(msg) {
+  document.getElementById('pin-error').textContent = msg;
+  const card = document.getElementById('login-card');
+  card.classList.add('shake');
+  setTimeout(function(){ card.classList.remove('shake'); }, 350);
+  _loginPin = '';
+  updatePinDots();
+}
+async function checkPin() {
+  switch(_pinMode) {
+    case 'login-verify': {
+      const h = await sha256Hex(_loginPin);
+      if (h === _pinTarget.pinHash) { setSession(_pinTarget.name, _pinTarget.dept); finishLogin(); }
+      else pinError('Onjuiste PIN-code');
+      break;
+    }
+    case 'login-create':
+      _pinTemp = _loginPin;
+      _pinMode = 'login-confirm';
+      enterPinStep();
+      break;
+    case 'login-confirm':
+      if (_loginPin === _pinTemp) {
+        const h = await sha256Hex(_loginPin);
+        await savePinHash(_pinTarget, h);
+        setSession(_pinTarget.name, _pinTarget.dept);
+        finishLogin();
+      } else {
+        _pinMode = 'login-create';
+        pinError('PIN-codes komen niet overeen, probeer opnieuw');
+        setTimeout(enterPinStep, 600);
+      }
+      break;
+    case 'change-current': {
+      const person = findPersonByName(getCurrentUserName());
+      const h = await sha256Hex(_loginPin);
+      if (person && h === person.pinHash) { _pinTarget = person; _pinMode='change-new'; enterPinStep(); }
+      else pinError('Onjuiste PIN-code');
+      break;
+    }
+    case 'change-new':
+      _pinTemp = _loginPin;
+      _pinMode = 'change-confirm';
+      enterPinStep();
+      break;
+    case 'change-confirm':
+      if (_loginPin === _pinTemp) {
+        const h = await sha256Hex(_loginPin);
+        await savePinHash(_pinTarget, h);
+        document.getElementById('login-overlay').style.display = 'none';
+        showToast('PIN-code gewijzigd ✓');
+      } else {
+        _pinMode = 'change-new';
+        pinError('PIN-codes komen niet overeen, probeer opnieuw');
+        setTimeout(enterPinStep, 600);
+      }
+      break;
+  }
+}
+
+// Vult alle naamvelden in met de naam van de aangemelde gebruiker
+
+// Schakel naar de juiste afdelingspagina op basis van de aangemelde sessie
+function switchToDeptForUser() {
+  try {
+  var s = getSession();
+  if (!s) return;
+  var targetDept;
+  switch (s.dept) {
+    case 'P4':        targetDept = 'P4'; break;
+    case 'Converting': targetDept = 'Converting'; break;
+    default:          targetDept = 'P1'; break; // P1, Ploegchef, Algemeen → P1
+  }
+  // Update de dropdown select
+  var sel = document.getElementById('dept-select');
+  if (sel) sel.value = targetDept;
+  // Roep switchDept aan
+  window.switchDept(targetDept);
+  } catch(e) { console.warn('switchToDeptForUser error:', e); }
+}
+
+function fillNameFields() {
+  var name = getCurrentUserName();
+  if (!name) return;
+  var ro = function(el){ if(el){el.value=name;el.readOnly=true;el.style.background='#f4f6fb';el.style.color='#5a6a8a';} };
+  // P4 panel naam
+  ro(document.querySelector('[id^="p4-name-"]'));
+  // Drag-picker naamveld
+  ro(document.getElementById('dp-op-name'));
+  // Op-name veld
+  ro(document.getElementById('op-name'));
+  // Meldingenformulier "Gemeld door"
+  ro(document.getElementById('f-by'));
+  ro(document.getElementById('reply-name'));
+  // Controles teamleider
+  ro(document.getElementById('cf-teamleider'));
+  // CAPA / knaagdieren naam
+  ro(document.getElementById('capa-name'));
+  ro(document.getElementById('knaag-name'));
+}
+
+function finishLogin() {
+  document.getElementById('login-overlay').style.display = 'none';
+  updateUserBadge();
+  fillNameFields();
+  var ac = document.getElementById('app-content');
+  if (ac) ac.style.display = 'block';
+  // Geef DOM even tijd om te renderen, schakel dan naar juiste afdeling
+  setTimeout(switchToDeptForUser, 50);
+  // Gegarandeerde render na login
+  setTimeout(function() {
+    try {
+      if (!dept) dept = 'P1';
+      rebindLines();
+    } catch(e) { console.warn('render error:', e); }
+  }, 300);
+}
+
+// ===== Gebruikersbadge + menu =====
+window.toggleUserMenu = function() {
+  var m = document.getElementById('user-menu');
+  m.style.display = (m.style.display === 'flex') ? 'none' : 'flex';
+};
+window.openChangePin = function() {
+  document.getElementById('user-menu').style.display = 'none';
+  const person = findPersonByName(getCurrentUserName());
+  if (!person) return;
+  _pinTarget = person;
+  _pinMode = person.pinHash ? 'change-current' : 'change-new';
+  document.getElementById('login-step-names').style.display = 'none';
+  document.getElementById('login-step-pin').style.display = 'block';
+  document.getElementById('login-overlay').style.display = 'flex';
+  enterPinStep();
+};
+window.logoutUser = function() {
+  document.getElementById('user-menu').style.display = 'none';
+  if (!confirm('Afmelden als ' + (getCurrentUserName()||'') + '?')) return;
+  clearSession();
+  document.getElementById('user-badge').style.display = 'none';
+  var ac = document.getElementById('app-content');
+  if (ac) ac.style.display = 'none';
+  showLoginOverlay();
+};
+function updateUserBadge() {
+  var s = getSession();
+  var area = document.getElementById('user-badge-area');
+  var nameEl = document.getElementById('user-badge-name');
+  if (s && area && nameEl) {
+    nameEl.textContent = s.name;
+    area.style.display = 'flex';
+  } else if (area) {
+    area.style.display = 'none';
+  }
+}
+
+// initPersonnel() en startup-check: zie na db-initialisatie hieronder
 // Laadscherm direct verbergen
 document.getElementById('loading').classList.add('hide');
 setTimeout(function(){ document.getElementById('loading').style.display='none'; }, 400);
@@ -786,6 +1508,35 @@ const app = initializeApp({
 });
 const db = getDatabase(app);
 
+// Initialiseer login-systeem nu db beschikbaar is
+try { initPersonnel(); } catch(e) { console.warn('initPersonnel error:', e); }
+if (!getSession()) { showLoginOverlay(); } else {
+  const _s0 = getSession();
+  if (_s0) writeActiveSession(_s0.name, _s0.dept, _s0.shiftEnd);
+  updateUserBadge(); fillNameFields();
+  var ac = document.getElementById('app-content');
+  if (ac) ac.style.display = 'block';
+  setTimeout(switchToDeptForUser, 50);
+  // Gegarandeerde render na login
+  setTimeout(function() {
+    try {
+      if (!dept) dept = 'P1';
+      rebindLines();
+    } catch(e) { console.warn('render error:', e); }
+  }, 300);
+}
+
+// Bewakingsfunctie: enkel acties toestaan als er een geldige sessie is
+function requireLogin(action) {
+  if (!getSession()) {
+    showLoginOverlay();
+    return false;
+  }
+  if (action) action();
+  return true;
+}
+
+
 const OD = {
   'vroeg-laat':{shift:'vroeg',sn:'Vroegploeg 05:00–13:00',chief:'Eddy Sulmont',ho:'Aeneas Demeulemeester'},
   'laat-nacht':{shift:'laat',sn:'Lateploeg 13:00–21:00',chief:'Aeneas Demeulemeester',ho:'Edwin Kerkhove'},
@@ -798,7 +1549,7 @@ const OD = {
 const SN={vroeg:'Vroegploeg 05:00–13:00',laat:'Lateploeg 13:00–21:00',nacht:'Nachtploeg 21:00–05:00',weekenddag:'Weekend Dagploeg 05:00–13:00',weekendnacht:'Weekend Nachtploeg 21:00–05:00'};
 const DL={P1:'P1 — Productie',P4:'P4 — Productie',Converting:'Converting'};
 
-let dept='P1', state={shift:{},lines:{},safety:{},machines:{},people:{},dept:{},escalations:{},general:{},td:{},incidents:{}};
+var dept='P1', state={shift:{},lines:{},safety:{},machines:{},people:{},dept:{},escalations:{},general:{},td:{},incidents:{}};
 let archFilter='all', unsubs=[], archUnsub=null, snapTimer=null;
 
 const p2=n=>String(n).padStart(2,'0');
@@ -861,6 +1612,7 @@ window.showPage=function(page,btn){
   document.querySelectorAll('.nav-btn').forEach(x=>x.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
   btn.classList.add('active');
+  if (page === 'archive') { loadLineIncidents(); }
 };
 
 window.switchDept=function(d){
@@ -880,6 +1632,7 @@ window.switchDept=function(d){
   archFilter='all';
   document.querySelectorAll('.afb').forEach(b=>b.classList.toggle('active',b.dataset.filter==='all'));
   rebindLists();rebindArch();rebindLines();
+  loadLineIncidents();
 };
 
 window.saveOpName=function(v){
@@ -1074,6 +1827,7 @@ const PL={ok:'Aanwezig',warn:'Verlaat vroeg',danger:'Afwezig'};
 const SC=['ok','warn','danger'],MC=['ok','warn','danger','off'],PC=['ok','warn','danger'];
 
 function rSafety(key,item){
+  if (!requireLogin()) return;
   const row=document.createElement('div');row.className='sr';row.id='i-'+key;
   const l=document.createElement('div');l.innerHTML='<div class="sl">'+item.label+'</div><div class="ss">'+(item.sub||'')+'</div>'+mkStamp(item,key);
   const r=document.createElement('div');r.className='srr';
@@ -1083,6 +1837,7 @@ function rSafety(key,item){
   addPhotoToRow(row,'safety',key,item.photo);addReplySection(row,'safety',key,item.replies,false);return row;
 }
 function rMachine(key,item){
+  if (!requireLogin()) return;
   const row=document.createElement('div');row.className='sr';row.id='i-'+key;
   const l=document.createElement('div');l.innerHTML='<div class="sl">'+item.label+'</div><div class="ss">'+(item.sub||'')+'</div>'+mkStamp(item,key);
   const r=document.createElement('div');r.className='srr';
@@ -1092,6 +1847,7 @@ function rMachine(key,item){
   addPhotoToRow(row,'machines',key,item.photo);addReplySection(row,'machines',key,item.replies,false);return row;
 }
 function rPerson(key,item){
+  if (!requireLogin()) return;
   const row=document.createElement('div');row.className='pr';row.id='i-'+key;
   const a=document.createElement('div');a.className='av '+gav(item.name);a.textContent=ini(item.name);
   const info=document.createElement('div');info.style.flex='1';info.innerHTML='<div class="pn">'+item.name+'</div><div class="pr2">'+(item.role||'')+'</div>'+(item.note?'<div style="font-size:11px;color:var(--ipb-text-muted);margin-top:2px;font-style:italic;">'+item.note+'</div>':'')+mkStamp(item,key);
@@ -1149,6 +1905,87 @@ function bindOne(sub,listId,cntId,renderFn){
     document.getElementById(cntId).textContent=Object.keys(data).length;
   });
 }
+
+// ===== ACTIEVE SESSIES LISTENER =====
+var activeSessionsUnsub = null;
+const DEPT_COLORS = {
+  P1: '#1E3A6E', Ploegchef: '#6DB33F', P4: '#F57F17',
+  Converting: '#1565C0', Algemeen: '#5a6a8a'
+};
+function initActiveSessionsListener() {
+  if (activeSessionsUnsub) activeSessionsUnsub();
+  activeSessionsUnsub = onValue(ref(db, 'active-sessions'), function(snap) {
+    const now = Date.now();
+    const val = snap.val() || {};
+    // Filter: verwijder verlopen sessies
+    const active = Object.entries(val).filter(function([k, s]) {
+      if (!s.name) return false;
+      if (s.shiftEnd && now >= s.shiftEnd) return false;
+      if (!s.shiftEnd && s.loginAt && (now - s.loginAt) > 24*3600000) return false;
+      return true;
+    }).sort(function(a, b) { return (a[1].dept||'').localeCompare(b[1].dept||'') || a[1].name.localeCompare(b[1].name); });
+
+    const el = document.getElementById('list-active');
+    const cnt = document.getElementById('cnt-active');
+    if (!el) return;
+    cnt.textContent = active.length;
+    el.innerHTML = '';
+
+    if (!active.length) {
+      el.innerHTML = '<div style="color:#b0bcd8;font-size:12px;font-style:italic;padding:4px 0;">Niemand aangemeld</div>';
+      return;
+    }
+
+    // Toon gebruikers als horizontale pills, geordend per afdeling
+    const deptOrder2 = ['Ploegchef','P1','P4','Converting','Algemeen'];
+    const groups = {};
+    active.forEach(function([k, s]) {
+      const d = s.dept || 'Algemeen';
+      if (!groups[d]) groups[d] = [];
+      groups[d].push(s);
+    });
+
+    // Groepen in volgorde tonen
+    deptOrder2.forEach(function(dept2) {
+      const members = groups[dept2];
+      if (!members || !members.length) return;
+      const col = DEPT_COLORS[dept2] || '#5a6a8a';
+      const deptLabel = dept2 === 'Ploegchef' ? 'Ploegchef P1' : dept2;
+
+      // Sectiekopp
+      const sep = document.createElement('div');
+      sep.style.cssText = 'display:flex;align-items:center;gap:6px;margin-right:14px;';
+      const sepLbl = document.createElement('span');
+      sepLbl.style.cssText = 'font-size:10px;font-weight:800;color:' + col + ';text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;opacity:.7;';
+      sepLbl.textContent = deptLabel;
+      sep.appendChild(sepLbl);
+      el.appendChild(sep);
+
+      // Gebruikers van deze afdeling als pills
+      members.forEach(function(s) {
+        const pill = document.createElement('div');
+        pill.style.cssText = 'display:flex;align-items:center;gap:7px;background:' + col + '15;border:1.5px solid ' + col + '55;border-radius:30px;padding:6px 14px;white-space:nowrap;';
+        const dot = document.createElement('span');
+        dot.style.cssText = 'width:9px;height:9px;border-radius:50%;background:' + col + ';flex-shrink:0;';
+        const nameEl = document.createElement('span');
+        nameEl.style.cssText = 'font-size:13px;font-weight:700;color:#1a2e5a;';
+        nameEl.textContent = s.name;
+        const timeEl = document.createElement('span');
+        timeEl.style.cssText = 'font-size:10px;color:#8a9abf;font-weight:500;';
+        if (s.loginAt) {
+          const d2 = new Date(s.loginAt);
+          const p2 = function(n){ return String(n).padStart(2,'0'); };
+          timeEl.textContent = p2(d2.getHours()) + ':' + p2(d2.getMinutes());
+        }
+        pill.appendChild(dot);
+        pill.appendChild(nameEl);
+        pill.appendChild(timeEl);
+        el.appendChild(pill);
+      });
+    });
+  });
+}
+
 function rebindLists(){
   unsubs.forEach(u=>u());unsubs=[];
   if(dept!=='P1'){
@@ -1183,6 +2020,7 @@ const ISL={open:'🔴 Open',followup:'🟠 In opvolging',closed:'🟢 Afgesloten
 const ISC={open:'so',followup:'sf',closed:'sc'};
 
 function rIncident(key,item){
+  if (!requireLogin()) return;
   const card=document.createElement('div');card.className='inc-card';card.id='i-'+key;
   let dt=item.incidentTime||'';if(dt){try{const d=new Date(dt);dt=d.toLocaleDateString('nl-BE')+' '+d.toLocaleTimeString('nl-BE',{hour:'2-digit',minute:'2-digit'});}catch(e){}}
   card.innerHTML='<div class="inc-head"><span class="it '+(ITC[item.type]||'it-o')+'">'+(ITL[item.type]||item.type)+'</span><span class="isev '+(IVC[item.severity]||'sv-l')+'">'+(IVL[item.severity]||item.severity)+'</span><span style="flex:1;font-size:13px;font-weight:700;margin-left:4px;">'+(item.location||'')+'</span><span style="font-size:11px;color:var(--ipb-text-muted);">'+dt+'</span></div><div class="ib">'+(item.persons?'<div style="font-size:13px;margin-bottom:4px;"><span style="font-weight:700;color:var(--ipb-text-muted);margin-right:8px;">Betrokkene(n)</span>'+item.persons+'</div>':'')+(item.description?'<div class="id2">'+item.description+'</div>':'')+(item.actions?'<div class="ia"><strong>Acties:</strong> '+item.actions+'</div>':'')+'</div><div class="if"><span>Gemeld door <strong>'+(item.reportedBy||'—')+'</strong> op '+(item.reportedAt||'')+'</span><span class="'+(ISC[item.status]||'so')+'">'+(ISL[item.status]||item.status)+'</span></div>';
@@ -1337,7 +2175,7 @@ function sOD(snap){
   '</div>';
 }
 function sLines(title,data,snapDept,lineHistory,snapMs){
-  const deptLines={'P1':['L11','L12','L14','L15','L16','L17','L18','IDE'],'P4':['L41','L42'],'Converting':[]};
+  const deptLines={'P1':['L11','L12','L14','L15','L16','L17','L18','IDE'],'Ploegchef':['L11','L12','L14','L15','L16','L17','L18','IDE'],'P4':['L41','L42'],'Converting':['swissq','cuir','kriby','cauhe','iijima','iberica','bsp','autolas','manlas','krimpfolie']};
   const LINES=deptLines[snapDept]||deptLines['P1'];
   if(!LINES.length) return '';
 
@@ -1365,7 +2203,7 @@ function sLines(title,data,snapDept,lineHistory,snapMs){
       const col=st?(OP_COLORS[st]||'#8a9abf'):'#8a9abf';
       const lbl=st?(OP_LBLS[st]||st):'Geen melding';
       const op=data[l]&&data[l].operator?data[l].operator:'';
-      out+='<span style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;margin:2px;background:'+col+'20;color:'+col+';border:1px solid '+col+';">'+l+' · '+lbl+(op?' ('+op+')':'')+'</span>';
+      out+='<span style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;margin:2px;background:'+col+'20;color:'+col+';border:1px solid '+col+';">'+lineLabel(l)+' · '+lbl+(op?' ('+op+')':'')+'</span>';
     });
     out+='</div>';
   }
@@ -1398,7 +2236,7 @@ function sLines(title,data,snapDept,lineHistory,snapMs){
       rawEntries.forEach(function(e){ if(e._ms>=winStart) entries2.push(e); });
 
       out+='<div style="display:flex;align-items:center;gap:8px;">';
-      out+='<div style="font-size:11px;font-weight:700;color:#1a2e5a;min-width:36px;">'+l+'</div>';
+      out+='<div style="font-size:11px;font-weight:700;color:#1a2e5a;min-width:90px;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+lineLabel(l)+'">'+lineLabel(l)+'</div>';
       out+='<div style="flex:1;height:18px;display:flex;border-radius:4px;overflow:hidden;border:1px solid #dde3f0;position:relative;">';
       for(let slot=0;slot<TSLOTS;slot++){
         const slotMs2 = winStart + slot*slotDur;
@@ -1462,6 +2300,7 @@ function sEsc(title,data){
   return '<div class="ssec"><div class="sstitle">'+title+'</div>'+rows+'</div>';
 }
 function sInc(title,data){
+  if (!requireLogin()) return;
   if(!data||!Object.keys(data).length)return '';
   const rows=Object.values(data).map(v=>{
     let dt=v.incidentTime||'';if(dt){try{const d=new Date(dt);dt=d.toLocaleDateString('nl-BE')+' '+d.toLocaleTimeString('nl-BE',{hour:'2-digit',minute:'2-digit'});}catch(e){}}
@@ -1495,11 +2334,13 @@ window.openModal=function(type){
   document.getElementById('modal-body').innerHTML=c.html;
   const sb=document.getElementById('msb');sb.textContent='Opslaan';sb.onclick=saveItem;
   document.getElementById('modal-bg').classList.add('open');
-  // Auto-fill name field
+  // Auto-fill name field vanuit aangemelde sessie
   const byField=document.getElementById('f-by');
   if(byField){
-    const autoName=state.shift&&state.shift.chief?state.shift.chief:(document.getElementById('op-input')?document.getElementById('op-input').value:'');
-    byField.value=autoName;
+    byField.value = getCurrentUserName() || '';
+    byField.readOnly = !!getCurrentUserName();
+    byField.style.background = getCurrentUserName() ? '#f4f6fb' : '';
+    byField.style.color = getCurrentUserName() ? '#5a6a8a' : '';
   }
   document.getElementById('f0').focus();
 };
@@ -1507,7 +2348,7 @@ window.closeModal=function(){document.getElementById('modal-bg').classList.remov
 window.saveItem=function(){
   const g=id=>(document.getElementById(id)||{}).value||'';
   const t=tt();
-  const by=(document.getElementById('f-by')||{}).value||'';
+  const by=getCurrentUserName()||(document.getElementById('f-by')||{}).value||'';
   if(cType==='safety')     push(ref(db,dp('safety')),    {label:g('f0'),sub:g('f1'),status:g('f2'),by:by,time:ts()});
   if(cType==='machine')    push(ref(db,dp('machines')),  {label:g('f0'),sub:g('f1'),status:g('f2'),by:by,time:ts()});
   if(cType==='people')     push(ref(db,dp('people')),    {name:g('f0'),role:g('f1'),status:g('f2'),by:by,note:g('f3'),time:ts()});
@@ -1515,7 +2356,7 @@ window.saveItem=function(){
   if(cType==='escalation') push(ref(db,dp('escalations')),{prio:g('f0'),label:g('f1'),detail:g('f2'),to:g('f3'),time:t,by:by});
   if(cType==='general')    push(ref(db,dp('general')),   {cat:g('f0'),text:g('f1'),time:t,by:by});
 
-  if(cType==='incident')   push(ref(db,'incidents'),     {type:g('f0'),severity:g('f1'),incidentTime:g('f2'),location:g('f3'),persons:g('f4'),description:g('f5'),actions:g('f6'),status:g('f7'),reportedAt:ts(),reportedBy:chief});
+  if(cType==='incident')   push(ref(db,'incidents'),     {type:g('f0'),severity:g('f1'),incidentTime:g('f2'),location:g('f3'),persons:g('f4'),description:g('f5'),actions:g('f6'),status:g('f7'),reportedAt:ts(),reportedBy:by});
   closeModal();showToast('Opgeslagen ✓');
 };
 document.getElementById('modal-bg').addEventListener('click',e=>{if(e.target.id==='modal-bg')closeModal();});
@@ -1525,10 +2366,20 @@ rebindLists();
 rebindArch();
 
 // ===== ACTIEVE LIJNEN =====
+// Converting: technische sleutel -> weergavenaam (sleutels bevatten geen spaties/leestekens
+// zodat ze veilig gebruikt kunnen worden als Firebase-pad en DOM-id)
+const CONVERTING_LABELS = {
+  swissq:'Swiss Q', cuir:'Cuir', kriby:'Kriby', cauhe:'Cauhe',
+  iijima:'Iijima', iberica:'Iberica', bsp:'BSP',
+  autolas:'Automatische las', manlas:'Manuele las', krimpfolie:'Krimpfolie'
+};
+function lineLabel(line){ return CONVERTING_LABELS[line] || line; }
+
 const LINES_PER_DEPT = {
   P1: ['L11','L12','L14','L15','L16','L17','L18','IDE'],
+  Ploegchef: ['L11','L12','L14','L15','L16','L17','L18','IDE'], // ploegchefs zien P1-lijnen
   P4: ['L41','L42'],
-  Converting: []
+  Converting: ['swissq','cuir','kriby','cauhe','iijima','iberica','bsp','autolas','manlas','krimpfolie']
 };
 
 // Operator status data - bewaard voor latere tijdslijn integratie
@@ -1548,13 +2399,13 @@ let opStatusData = {};
 
 function getLines() { return LINES_PER_DEPT[dept] || []; }
 
-let linesUnsub = null;
-let opStatusUnsub = null;
+var linesUnsub = null;
+var opStatusUnsub = null;
 
 function initLines() {
   const card = document.querySelector('.lines-card');
   const lines = getLines();
-  if (card) card.style.display = lines.length === 0 ? 'none' : 'block';
+  if (card) card.style.display = 'block'; // altijd tonen
   renderLines();
 }
 
@@ -1681,7 +2532,7 @@ function renderLines() {
 
     const nameEl = document.createElement('span');
     nameEl.style.cssText = 'font-size:15px;font-weight:800;color:#1a2e5a;';
-    nameEl.textContent = line;
+    nameEl.textContent = lineLabel(line);
 
     const badge = document.createElement('span');
     badge.style.cssText = 'font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;background:'+stColor+';color:#fff;flex-shrink:0;';
@@ -1723,7 +2574,7 @@ function renderLines() {
     kgVal.textContent = snelheid;
     const kgUnit = document.createElement('span');
     kgUnit.style.cssText = 'font-size:10px;font-weight:600;color:#8a9abf;';
-    kgUnit.textContent = 'kg/h';
+    kgUnit.textContent = (dept==='Converting') ? 'stuks/h' : 'kg/h';
     kgRow.appendChild(kgVal);
     kgRow.appendChild(kgUnit);
 
@@ -1778,6 +2629,7 @@ function renderLines() {
     div.appendChild(miniBar);
     div.appendChild(lblRow);
     div.onclick = function(){
+      if (!requireLogin()) return;
       if (dept==='P4') { toggleP4Input(line, div); }
       else { openTimelineModal(line); }
     };
@@ -1794,6 +2646,7 @@ function renderLines() {
 }
 
 function toggleLine(line) {
+  if (!requireLogin()) return;
   const current = (state.lines && state.lines[line]) === true;
   update(ref(db, dept + '/lines'), {[line]: !current});
 }
@@ -1882,7 +2735,164 @@ function rebindLines() {
   rebindOpStatus();
 }
 
+
+// ===== LIJNINCIDENTEN ARCHIEF =====
+var lineIncidentsUnsub = null;
+var lineIncidentsData = {};
+
+const LI_STATUS_LABELS = {
+  panne: '🔴 Panne / Stilstand',
+  problemen: '🟠 Problemen',
+  vertraagd: '⚠️ Vertraging'
+};
+const LI_STATUS_COLORS = {
+  panne: '#C62828',
+  problemen: '#F57F17',
+  vertraagd: '#F9A825'
+};
+
+function loadLineIncidents() {
+  if (lineIncidentsUnsub) lineIncidentsUnsub();
+  lineIncidentsUnsub = onValue(ref(db, 'line-incidents/' + dept), function(snap) {
+    lineIncidentsData = snap.val() || {};
+    // Tally total
+    var total = 0;
+    Object.values(lineIncidentsData).forEach(function(lineEntries) {
+      total += Object.keys(lineEntries || {}).length;
+    });
+    document.getElementById('cnt-li').textContent = total;
+    renderLineIncidents();
+  });
+}
+
+window.renderLineIncidents = function() {
+  var list = document.getElementById('li-list');
+  var lbl = document.getElementById('li-dept-lbl');
+  if (!list) return;
+  if (lbl) lbl.textContent = DL[dept] || dept;
+
+  var fromV = (document.getElementById('li-from') || {}).value || '';
+  var toV   = (document.getElementById('li-to')   || {}).value || '';
+
+  list.innerHTML = '';
+  var lines = getLines();
+  var totalShown = 0;
+
+  lines.forEach(function(line) {
+    var lineData = lineIncidentsData[line] || {};
+    var entries = Object.entries(lineData).map(function(e) {
+      return Object.assign({_key: e[0]}, e[1]);
+    });
+
+    // Date filter
+    if (fromV || toV) {
+      entries = entries.filter(function(e) {
+        var d = e.date || '';
+        // date is DD/MM/YYYY, convert to YYYY-MM-DD for comparison
+        var parts = d.split('/');
+        var dCmp = parts.length === 3 ? parts[2]+'-'+parts[1]+'-'+parts[0] : d;
+        if (fromV && dCmp < fromV) return false;
+        if (toV   && dCmp > toV)   return false;
+        return true;
+      });
+    }
+
+    if (!entries.length) return;
+    totalShown += entries.length;
+
+    // Sort newest first
+    entries.sort(function(a, b) {
+      return (b.archivedAt || '').localeCompare(a.archivedAt || '');
+    });
+
+    // Line header
+    var lineHdr = document.createElement('div');
+    lineHdr.style.cssText = 'font-size:13px;font-weight:800;color:#1a2e5a;padding:10px 0 4px;border-bottom:2px solid #e8ecf4;margin-bottom:6px;display:flex;align-items:center;gap:8px;';
+    lineHdr.innerHTML = '<span style="background:#1E3A6E;color:#fff;padding:2px 10px;border-radius:20px;font-size:12px;">'+line+'</span><span style="color:var(--ipb-text-muted);font-size:12px;font-weight:500;">'+entries.length+' incident'+(entries.length>1?'s':'')+'</span>';
+    list.appendChild(lineHdr);
+
+    entries.forEach(function(e) {
+      var col = LI_STATUS_COLORS[e.status] || '#8a9abf';
+      var lbl2 = LI_STATUS_LABELS[e.status] || e.status;
+      var row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:flex-start;gap:10px;padding:7px 0;border-bottom:1px solid #f0f2f7;';
+
+      var badge = document.createElement('div');
+      badge.style.cssText = 'background:'+col+';color:#fff;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;flex-shrink:0;min-width:70px;text-align:center;';
+      badge.textContent = (e.date||'')+(e.timeVal?' '+e.timeVal:'');
+
+      var info = document.createElement('div');
+      info.style.cssText = 'flex:1;';
+      var extra = e.snelheid ? ' · '+e.snelheid+(dept==='Converting'?' st/h':' kg/h') : '';
+      info.innerHTML = '<div style="font-size:13px;font-weight:700;color:'+col+';">'+lbl2+'</div>'
+        + '<div style="font-size:11px;color:#5a6a8a;">'+(e.operator||'—')+(e.note?' · '+e.note:'')+extra+'</div>';
+
+      var delBtn = document.createElement('button');
+      delBtn.style.cssText = 'padding:2px 7px;border:1px solid #e24b4a;background:#fef1f1;color:#8b1a1a;cursor:pointer;font-size:11px;border-radius:5px;flex-shrink:0;';
+      delBtn.innerHTML = '🗑';
+      delBtn.title = 'Verwijderen';
+      delBtn.onclick = function() {
+        if (!requireLogin()) return;
+        if (window.confirm('Incident verwijderen?')) {
+          remove(ref(db, 'line-incidents/'+dept+'/'+line+'/'+e._key));
+        }
+      };
+
+      row.appendChild(badge);
+      row.appendChild(info);
+      row.appendChild(delBtn);
+      list.appendChild(row);
+    });
+  });
+
+  // Update count
+  var cnt = document.getElementById('cnt-li');
+  if (cnt) cnt.textContent = totalShown;
+
+  if (!totalShown) {
+    list.innerHTML = '<div style="text-align:center;padding:24px;color:var(--ipb-text-muted);font-size:13px;">Geen incidenten gevonden voor deze afdeling</div>';
+  }
+};
+
+window.exportLineIncidentsExcel = function() {
+  var hdrs = ['Lijn','Datum','Tijdstip','Status','Operator','Opmerking','Snelheid','Gearchiveerd op'];
+  var rows = [hdrs];
+  Object.entries(lineIncidentsData).forEach(function(lineE) {
+    var lineName = lineE[0];
+    Object.values(lineE[1] || {}).forEach(function(e) {
+      rows.push([
+        lineName, e.date||'', e.timeVal||'', e.status||'',
+        e.operator||'', e.note||'', e.snelheid||'', e.archivedAt||''
+      ]);
+    });
+  });
+  rows.sort(function(a,b){ return (b[7]||'').localeCompare(a[7]||''); });
+  var p2 = n=>String(n).padStart(2,'0');
+  var d = new Date();
+  var wb = window.XLSX.utils.book_new();
+  var ws = window.XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{wch:8},{wch:12},{wch:8},{wch:18},{wch:18},{wch:30},{wch:8},{wch:20}];
+  window.XLSX.utils.book_append_sheet(wb, ws, 'Lijnincidenten');
+  window.XLSX.writeFile(wb, 'IPB_Lijnincidenten_'+dept+'_'+d.getFullYear()+p2(d.getMonth()+1)+p2(d.getDate())+'.xlsx');
+  showToast('Excel geëxporteerd ✓');
+};
+
 rebindLines();
+initActiveSessionsListener();
+
+// GARANTIE: render tegels na volledig laden op verschillende momenten
+function ensureLines() {
+  try {
+    var body = document.getElementById('lines-body');
+    if (!dept) dept = 'P1';
+    if (body && !body.children.length) {
+      initLines();
+    }
+  } catch(e) { console.warn('[ensureLines] error:', e); }
+}
+setTimeout(ensureLines, 300);
+setTimeout(ensureLines, 1000);
+setTimeout(ensureLines, 3000);
 
 // Herbereken de tijdslijn elke minuut (nu-marker en toekomstige segmenten bijwerken)
 setInterval(function() { renderLines(); }, 60000);
@@ -2091,10 +3101,27 @@ function attachRollingDrag(inner, slots, entries, startMs, nowMs, onDragEnd) {
     const cx=(ev.touches&&ev.touches[0])?ev.touches[0].clientX:(ev.changedTouches&&ev.changedTouches[0])?ev.changedTouches[0].clientX:ev.clientX;
     return Math.max(0, Math.min(futureCutoff, Math.floor(((cx-rect.left)/rect.width)*TL_SLOTS)));
   }
-  inner.addEventListener('mousedown',function(e){const s=getSlot(e);if(s>futureCutoff)return;dragging=true;ds=s;de=s;highlight(e);e.preventDefault();});
-  inner.addEventListener('mousemove',function(e){if(!dragging)return;de=getSlot(e);highlight(e);e.preventDefault();});
-  inner.addEventListener('mouseup',done);
-  inner.addEventListener('mouseleave',done);
+  // Hover-tooltip VÓÓR slepen: toon tijdstip bij bewegen over balk
+  inner.addEventListener('mousemove', function(e) {
+    if (dragging) { de=getSlot(e); highlight(e); e.preventDefault(); return; }
+    const s = getSlot(e);
+    const ms = startMs + s * slotDurMs;
+    const d = new Date(ms);
+    tooltip.textContent = '🕐 ' + p2(d.getDate())+'/'+p2(d.getMonth()+1)+' '+p2(d.getHours())+':'+p2(d.getMinutes());
+    tooltip.style.left = Math.min(e.clientX+12, window.innerWidth-160)+'px';
+    tooltip.style.top  = (e.clientY-36)+'px';
+    tooltip.style.display = 'block';
+  });
+  inner.addEventListener('mouseleave', function() { if (!dragging) hideTooltip(); });
+  inner.addEventListener('mousedown', function(e) {
+    const s=getSlot(e); if(s>futureCutoff)return;
+    dragging=true; ds=s; de=s; highlight(e); e.preventDefault();
+    // Gebruik document-events zodat slepen buiten de balk werkt
+    function onMove(e){de=getSlot(e);highlight(e);}
+    function onUp(e){document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);done(e);}
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup',  onUp);
+  });
   inner.addEventListener('touchstart',function(e){const s=getSlot(e);if(s>futureCutoff)return;dragging=true;ds=s;de=s;highlight(e);e.preventDefault();},{passive:false});
   inner.addEventListener('touchmove',function(e){if(!dragging)return;de=getSlot(e);highlight(e);e.preventDefault();},{passive:false});
   inner.addEventListener('touchend',function(e){hideTooltip();done(e);},{passive:false});
@@ -2116,7 +3143,7 @@ function buildSpeedChart(container, entries, height, extraPoint) {
   container.style.cssText='width:100%;margin-top:6px;';
   const label = document.createElement('div');
   label.style.cssText='font-size:10px;font-weight:700;color:#5a6a8a;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;';
-  label.textContent='⚡ Output extruder (kg/h)';
+  label.textContent = (dept==='Converting') ? '⚡ Output (stuks/h)' : '⚡ Output (kg/h)';
   container.appendChild(label);
 
   const maxV = Math.max.apply(null, speedEntries.map(function(e){return parseFloat(e.snelheid);})) * 1.15 || 1;
@@ -2157,11 +3184,11 @@ function buildSpeedChart(container, entries, height, extraPoint) {
 
 // ===== PERSISTENTE PLOEGCHEFNAAM (P4) =====
 function getSavedChiefName() {
-  try { return localStorage.getItem('ipb_p4_chief_name') || ''; } catch(e) { return ''; }
+  return getCurrentUserName() || '';
 }
 function saveChiefName(name) {
-  if (!name) return;
-  try { localStorage.setItem('ipb_p4_chief_name', name); } catch(e) {}
+  // Naam komt nu uit de PIN-aanmelding; deze functie is overbodig maar blijft
+  // bestaan voor compatibiliteit met bestaande aanroepen.
 }
 
 // ===== P4 INLINE STATUS INGAVE =====
@@ -2178,6 +3205,7 @@ const P4_ST = {
 const P4_ICONS = {productie:'🟢', problemen:'🟡', overgang:'🔵', panne:'🔴', geen:'⚫'};
 
 function toggleP4Input(line, cardDiv) {
+  if (!requireLogin()) return;
   const panel = document.getElementById('p4-panel-'+line);
   if (!panel) return;
   if (p4ActiveLine && p4ActiveLine !== line) {
@@ -2216,8 +3244,9 @@ function renderP4Panel(line, panel, cardDiv) {
   const nameInp = document.createElement('input');
   nameInp.type='text'; nameInp.id='p4-name-'+line;
   nameInp.placeholder='Naam ploegchef';
-  nameInp.value=getSavedChiefName()||(state.shift&&state.shift.chief)||'';
-  nameInp.style.cssText='flex:1;min-width:100px;padding:5px 8px;border:1.5px solid #b0bcd8;border-radius:6px;font-size:12px;';
+  nameInp.value=getCurrentUserName()||'';
+  nameInp.readOnly=true;
+  nameInp.style.cssText='flex:1;min-width:100px;padding:5px 8px;border:1.5px solid #b0bcd8;border-radius:6px;font-size:12px;background:#f4f6fb;color:#5a6a8a;';
   nameInp.onclick=function(e){e.stopPropagation();};
   const snelInp = document.createElement('input');
   snelInp.type='number'; snelInp.id='p4-snelheid-'+line;
@@ -2397,30 +3426,53 @@ function attachP4Drag(inner, slots, line, entries, panel, nowMins, timeInp, pick
     picker.style.cssText='display:block;background:#edf3fe;border-radius:8px;padding:10px;margin-bottom:8px;border:1px solid #1E3A6E44;';
   }
 
+  // Hover-tooltip VÓÓR slepen
+  inner.addEventListener('mousemove', function(e) {
+    if (dragging) { dragEnd=Math.min(slotFromX(e),Math.floor(nowMins/5)); highlight(); e.preventDefault(); return; }
+    const s=slotFromX(e);
+    if(s*5>nowMins) return;
+    const h=Math.floor(s*5/60), m=(s*5)%60;
+    const hoverTooltip=document.getElementById('p4-hover-tip')||document.createElement('div');
+    hoverTooltip.id='p4-hover-tip';
+    hoverTooltip.style.cssText='position:fixed;background:#1E3A6E;color:#fff;font-size:12px;font-weight:700;padding:5px 10px;border-radius:6px;pointer-events:none;z-index:9999;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.25);';
+    hoverTooltip.textContent='🕐 '+p2(h)+':'+p2(m);
+    hoverTooltip.style.left=Math.min(e.clientX+12,window.innerWidth-140)+'px';
+    hoverTooltip.style.top=(e.clientY-36)+'px';
+    if(!document.getElementById('p4-hover-tip')) document.body.appendChild(hoverTooltip);
+  });
+  inner.addEventListener('mouseleave', function() {
+    if(!dragging){const t=document.getElementById('p4-hover-tip');if(t)t.remove();}
+  });
   inner.addEventListener('mousedown',function(e){
     const s=slotFromX(e);
     if(s*5>nowMins) return;
+    const t=document.getElementById('p4-hover-tip');if(t)t.remove();
     dragging=true; dragStart=s; dragEnd=s; highlight(); e.preventDefault();
+    function onMove(e){dragEnd=Math.min(slotFromX(e),Math.floor(nowMins/5));highlight();}
+    function onUp(e){
+      document.removeEventListener('mousemove',onMove);
+      document.removeEventListener('mouseup',onUp);
+      if(!dragging) return; dragging=false;
+      const s=Math.min(dragStart,dragEnd), en=Math.max(dragStart,dragEnd);
+      slots.forEach(function(b){b.style.outline='';});
+      if(en-s>=1) showPicker(s,en); e.preventDefault();
+    }
+    document.addEventListener('mousemove',onMove);
+    document.addEventListener('mouseup', onUp);
   });
-  inner.addEventListener('mousemove',function(e){
-    if(!dragging) return;
-    dragEnd=Math.min(slotFromX(e),Math.floor(nowMins/5)); highlight(); e.preventDefault();
-  });
-  function onUp(e){
-    if(!dragging) return; dragging=false;
-    const s=Math.min(dragStart,dragEnd), en=Math.max(dragStart,dragEnd);
-    slots.forEach(function(b){b.style.outline='';});
-    if(en-s>=1) showPicker(s,en); e.preventDefault();
-  }
-  inner.addEventListener('mouseup',onUp);
-  inner.addEventListener('mouseleave',onUp);
   inner.addEventListener('touchstart',function(e){const s=slotFromX(e);if(s*5>nowMins)return;dragging=true;dragStart=s;dragEnd=s;highlight();e.preventDefault();},{passive:false});
   inner.addEventListener('touchmove',function(e){if(!dragging)return;dragEnd=Math.min(slotFromX(e),Math.floor(nowMins/5));highlight();e.preventDefault();},{passive:false});
-  inner.addEventListener('touchend',onUp,{passive:false});
+  inner.addEventListener('touchend',function(e){
+    if(!dragging)return;dragging=false;
+    const s=Math.min(dragStart,dragEnd),en=Math.max(dragStart,dragEnd);
+    slots.forEach(function(b){b.style.outline='';});
+    if(en-s>=1)showPicker(s,en);e.preventDefault();
+  },{passive:false});
 }
 
 
 function saveP4Status(line, panel) {
+  if (!requireLogin()) return;
   let selStatus = panel._selStatus;
   let snelheidCheck = document.getElementById('p4-snelheid-'+line);
   if (!selStatus && !(snelheidCheck&&snelheidCheck.value.trim())) return;
@@ -2431,8 +3483,7 @@ function saveP4Status(line, panel) {
   let startDate = panel._startDate || today;
   let endTime = panel._endTime;
   let endDate = panel._endDate || today;
-  let opName = document.getElementById('p4-name-'+line).value.trim() || getSavedChiefName() || 'Ploegchef';
-  saveChiefName(opName);
+  let opName = getCurrentUserName() || document.getElementById('p4-name-'+line).value.trim() || 'Ploegchef';
   let note = document.getElementById('p4-note-'+line).value.trim();
   let snelheid = document.getElementById('p4-snelheid-'+line).value.trim();
 
@@ -2496,6 +3547,20 @@ function saveP4Status(line, panel) {
     });
   }
 
+  // Automatisch archiveren bij panne/problemen
+  if (['panne','problemen'].includes(selStatus)) {
+    push(ref(db,'line-incidents/P4/'+line), {
+      status: selStatus,
+      line: line,
+      dept: 'P4',
+      operator: opName,
+      note: note||'',
+      date: today,
+      timeVal: startTime,
+      time: p2(now.getHours())+':'+p2(now.getMinutes()),
+      archivedAt: new Date().toISOString()
+    });
+  }
   if(panel._refreshTimer){clearInterval(panel._refreshTimer);panel._refreshTimer=null;}
   panel.style.display='none'; panel.innerHTML='';
   p4ActiveLine=null; p4SelStatus=null;
@@ -2600,7 +3665,7 @@ function renderControle() {
       var delBtn = document.createElement('button');
       delBtn.style.cssText='padding:2px 8px;border-radius:5px;border:1px solid #e24b4a;background:#fef1f1;color:#8b1a1a;cursor:pointer;font-size:11px;margin-left:4px;';
       delBtn.textContent = '🗑';
-      delBtn.onclick = function(e) { e.stopPropagation(); if(window.confirm('Controle verwijderen?')) remove(ref(db,'controles/'+key)); };
+      delBtn.onclick = function(e) { e.stopPropagation(); if(window.confirm('Controle verwijderen?')) if (!requireLogin()) return; remove(ref(db,'controles/'+key)); };
 
       head.appendChild(dateBadge);
       head.appendChild(tlSpan);
@@ -2708,8 +3773,12 @@ window.toggleRemark = function(prefix) {
 window.openControleForm = function() {
   var d=new Date(), p2=function(n){return String(n).padStart(2,'0');};
   document.getElementById('cf-datum').value = d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());
-  var chief = state.shift&&state.shift.chief ? state.shift.chief : '';
+  var chief = getCurrentUserName() || (state.shift&&state.shift.chief ? state.shift.chief : '');
   document.getElementById('cf-teamleider').value = chief;
+  if (getCurrentUserName()) {
+    var tlEl = document.getElementById('cf-teamleider');
+    if (tlEl) { tlEl.readOnly = true; tlEl.style.background='#f4f6fb'; tlEl.style.color='#5a6a8a'; }
+  }
   // Reset regular inputs (clear value, keep visible)
   ['cf-extrudeur','cf-ordernr','cf-additieven-afwijking','cf-zonale-reden','cf-lipmeting-reden',
    'cf-lengte-l','cf-lengte-r','cf-breedte','cf-dikte','cf-gewicht'].forEach(function(id){
@@ -2738,7 +3807,9 @@ window.closeControleForm = function() {
 };
 
 window.saveControleForm = function() {
-  var g=function(id){return (document.getElementById(id)||{}).value||'';};
+  if (!requireLogin()) return;
+  var g=function(id){return (document.getElementById(id)||{}).value||'';}
+  var _sessionBy = getCurrentUserName();;
   var datumRaw = g('cf-datum');
   if (!datumRaw) { alert('Kies een datum'); return; }
   if (!g('cf-teamleider')) { alert('Vul de naam van de teamleider in'); return; }
@@ -2746,7 +3817,7 @@ window.saveControleForm = function() {
   var dp=datumRaw.split('-');
   var datum = dp.length===3 ? dp[2]+'/'+dp[1]+'/'+dp[0] : datumRaw;
   push(ref(db,'controles'), {
-    datum:datum, teamleider:g('cf-teamleider'), extrudeur:g('cf-extrudeur'), ordernr:g('cf-ordernr'),
+    datum:datum, teamleider:_sessionBy||g('cf-teamleider'), extrudeur:g('cf-extrudeur'), ordernr:g('cf-ordernr'),
     lengte_l:g('cf-lengte-l'), lengte_l_ok:g('cf-lengte-l-ok'), lengte_l_opmerking:g('cf-lengte-l-opmerking'),
     lengte_r:g('cf-lengte-r'), lengte_r_ok:g('cf-lengte-r-ok'), lengte_r_opmerking:g('cf-lengte-r-opmerking'),
     breedte:g('cf-breedte'), breedte_ok:g('cf-breedte-ok'), breedte_opmerking:g('cf-breedte-opmerking'),
@@ -2762,7 +3833,7 @@ window.saveControleForm = function() {
     bedrukking_ok:g('cf-bedrukking-ok'), bedrukking_opmerking:g('cf-bedrukking-opmerking'),
     perforatie_ok:g('cf-perforatie-ok'), perforatie_opmerking:g('cf-perforatie-opmerking'),
     rillijnen_ok:g('cf-rillijnen-ok'), rillijnen_opmerking:g('cf-rillijnen-opmerking'),
-    createdAt:ts(), createdBy:g('cf-teamleider'), bron:'manueel'
+    createdAt:ts(), createdBy:_sessionBy||g('cf-teamleider'), bron:'manueel'
   }).then(function() {
     closeControleForm();
     showToast('Controle opgeslagen ✓');
@@ -2801,6 +3872,7 @@ loadControle();
 
 let currentTimelineLine = null;
 window.openTimelineModal = function(line) {
+  if (!requireLogin()) return;
   currentTimelineLine = line;
   document.getElementById('timeline-modal-title').textContent = 'Tijdslijn \u2014 ' + line;
   const body = document.getElementById('timeline-modal-body');
@@ -2863,7 +3935,7 @@ window.openTimelineModal = function(line) {
         const info = document.createElement('div');
         info.style.cssText = 'flex:1;';
         let extra = '';
-        if (item.snelheid) extra += ' \u00b7 '+item.snelheid+' kg/h';
+        if (item.snelheid) extra += ' \u00b7 '+item.snelheid+(dept==='Converting'?' stuks/h':' kg/h');
         if (item.toerental) extra += ' \u00b7 '+item.toerental+' rpm';
         info.innerHTML = '<div style="font-size:13px;font-weight:600;color:'+col+';">'+lbl+'</div>'
           + '<div style="font-size:11px;color:#8a9abf;">'+(item.operator||'')+(item.note?' \u00b7 '+item.note:'')+extra+'</div>';
@@ -3083,12 +4155,12 @@ window.exportQualityExcel = function() {
 };
 
 window.closeQualityItem = function(key) {
-  update(ref(db,'quality/'+key), {status:'closed'});
+  if (!requireLogin()) return; update(ref(db,'quality/'+key), {status:'closed'});
   showToast('Melding afgesloten ✓');
 };
 window.deleteQualityItem = function(key) {
   if (window.confirm('Melding definitief verwijderen?')) {
-    remove(ref(db,'quality/'+key));
+    if (!requireLogin()) return; remove(ref(db,'quality/'+key));
     showToast('Melding verwijderd');
   }
 };
@@ -3107,12 +4179,14 @@ window.openQualityForm = function(type) {
   const today = d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());
   if (type==='capa') {
     document.getElementById('capa-date').value = today;
-    const chief=state.shift&&state.shift.chief?state.shift.chief:'';
-    document.getElementById('capa-name').value = chief;
+    var capaName = getCurrentUserName() || (state.shift&&state.shift.chief?state.shift.chief:'');
+    document.getElementById('capa-name').value = capaName;
+    if (getCurrentUserName()) { var cnEl=document.getElementById('capa-name'); if(cnEl){cnEl.readOnly=true;cnEl.style.background='#f4f6fb';cnEl.style.color='#5a6a8a';} }
     document.getElementById('capa-modal').style.display='flex';
   } else {
-    const chief=state.shift&&state.shift.chief?state.shift.chief:'';
-    document.getElementById('knaag-name').value = chief;
+    var knaagName = getCurrentUserName() || (state.shift&&state.shift.chief?state.shift.chief:'');
+    document.getElementById('knaag-name').value = knaagName;
+    if (getCurrentUserName()) { var knEl=document.getElementById('knaag-name'); if(knEl){knEl.readOnly=true;knEl.style.background='#f4f6fb';knEl.style.color='#5a6a8a';} }
     ['knaag-muis','knaag-rat','knaag-meer','knaag-sporen'].forEach(id=>{ const el=document.getElementById(id); if(el) el.checked=false; });
     document.getElementById('knaag-aantal').value='';
     document.getElementById('knaag-loc').value='';
@@ -3130,6 +4204,7 @@ window.saveCapaForm = function() {
   if (!name) { alert('Vul uw naam in'); return; }
   if (!desc) { alert('Beschrijf de non-conformiteit'); return; }
   if (!actions) { alert('Vul de corrigerende acties in'); return; }
+  if (!requireLogin()) return;
   push(ref(db,'quality'), {
     formType:'capa', name, date:document.getElementById('capa-date').value,
     klatch:document.getElementById('capa-klatch').value,
@@ -3158,6 +4233,7 @@ window.saveKnaagForm = function() {
   if (!name) { alert('Vul uw naam in'); return; }
   if (!loc) { alert('Vul de exacte locatie in'); return; }
   if (!muis&&!rat&&!meer&&!sporen) { alert('Kies minstens één type waarneming'); return; }
+  if (!requireLogin()) return;
   push(ref(db,'quality'), {
     formType:'knaagdieren', name,
     dept:document.getElementById('knaag-dept').value,
@@ -3181,9 +4257,14 @@ let currentReplyTarget = null;
 window.openReplyModal = function(collection, key, isGlobal) {
   currentReplyTarget = {collection:collection, key:key, isGlobal:isGlobal||false};
   document.getElementById('reply-modal-bg').style.display = 'flex';
-  document.getElementById('reply-name').value = '';
+  var rNameEl = document.getElementById('reply-name');
+  var sessionName = getCurrentUserName() || '';
+  rNameEl.value = sessionName;
+  rNameEl.readOnly = !!sessionName;
+  rNameEl.style.background = sessionName ? '#f4f6fb' : '';
+  rNameEl.style.color = sessionName ? '#5a6a8a' : '';
   document.getElementById('reply-text').value = '';
-  setTimeout(function(){ document.getElementById('reply-name').focus(); }, 100);
+  setTimeout(function(){ document.getElementById('reply-text').focus(); }, 100);
 };
 window.closeReplyModal = function() {
   document.getElementById('reply-modal-bg').style.display = 'none';
@@ -3191,7 +4272,7 @@ window.closeReplyModal = function() {
 };
 window.saveReply = function() {
   if (!currentReplyTarget) return;
-  const name = document.getElementById('reply-name').value.trim();
+  const name = getCurrentUserName() || document.getElementById('reply-name').value.trim();
   const text = document.getElementById('reply-text').value.trim();
   if (!name) { alert('Vul uw naam in.'); return; }
   if (!text) { alert('Typ een reactie.'); return; }
@@ -3219,11 +4300,16 @@ function addReplySection(el, collection, key, replies, isGlobal) {
     Object.entries(replies).sort(function(a,b){return a[0].localeCompare(b[0]);}).forEach(function(entry) {
       var rKey = entry[0], r = entry[1];
       var item = document.createElement('div'); item.className = 'reply-item';
+      item.style.cssText = 'position:relative;';
       var rTime = pushKeyToTime(rKey) || r.time || '';
-      item.innerHTML = '<div class="reply-meta"><strong>' + (r.name||'—') + '</strong><span>' + rTime + '</span></div><div class="reply-text">' + (r.text||'') + '</div>';
-      var delR = document.createElement('button'); delR.className = 'reply-del'; delR.innerHTML = '&#128465;'; delR.title = 'Verwijderen';
+      item.innerHTML = '<div class="reply-meta" style="padding-right:28px;"><strong>' + (r.name||'—') + '</strong><span>' + rTime + '</span></div><div class="reply-text">' + (r.text||'') + '</div>';
+      var delR = document.createElement('button');
+      delR.className = 'reply-del';
+      delR.innerHTML = '&#128465;';
+      delR.title = 'Verwijderen';
+      delR.style.cssText = 'position:absolute;top:4px;right:4px;padding:2px 5px;font-size:12px;';
       var rPath = (isGlobal ? collection : dept+'/'+collection) + '/' + key + '/replies/' + rKey;
-      delR.onclick = function(e) { e.stopPropagation(); remove(ref(db, rPath)); };
+      delR.onclick = function(e) { e.stopPropagation(); if (!requireLogin()) return; remove(ref(db, rPath)); };
       item.appendChild(delR);
       sec.appendChild(item);
     });
