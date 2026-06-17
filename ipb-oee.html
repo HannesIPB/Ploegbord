@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IPB — OEE Dashboard</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<style>
+:root{
+  --navy:#1E3A6E;--green:#6DB33F;--red:#C62828;--orange:#E65100;
+  --amber:#F57F17;--blue:#1565C0;--muted:#5a6a8a;--light:#f4f6fb;
+  --white:#fff;--border:#dde3f0;--text:#1a2e5a;
+  --oee-good:#2e7d32;--oee-mid:#E65100;--oee-low:#C62828;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#eef1f7;color:var(--text);min-height:100vh;}
+
+/* ── Access Gate ── */
+#gate{position:fixed;inset:0;background:var(--navy);display:flex;align-items:center;justify-content:center;z-index:9999;}
+.gate-card{background:#fff;border-radius:16px;padding:40px 48px;width:340px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.3);}
+.gate-card h1{font-size:22px;color:var(--navy);margin-bottom:4px;}
+.gate-card p{color:var(--muted);font-size:13px;margin-bottom:24px;}
+.gate-card input{width:100%;padding:12px 16px;border:2px solid var(--border);border-radius:8px;font-size:16px;letter-spacing:.15em;text-align:center;margin-bottom:12px;outline:none;}
+.gate-card input:focus{border-color:var(--navy);}
+.gate-card button{width:100%;padding:12px;background:var(--navy);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;}
+.gate-card .err{color:var(--red);font-size:12px;margin-top:6px;min-height:18px;}
+
+/* ── App ── */
+#app{display:none;}
+header{background:var(--navy);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;}
+header .brand{display:flex;align-items:center;gap:12px;}
+header h1{color:#fff;font-size:17px;font-weight:800;letter-spacing:-.01em;}
+header .sub{color:rgba(255,255,255,.55);font-size:12px;}
+.hdr-right{display:flex;align-items:center;gap:12px;}
+.btn-sm{padding:5px 14px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;border:none;}
+.btn-out{background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.3);}
+.btn-out:hover{background:rgba(255,255,255,.25);}
+
+/* ── Controls bar ── */
+.controls{background:#fff;border-bottom:1px solid var(--border);padding:10px 24px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.ctrl-group{display:flex;align-items:center;gap:6px;}
+.ctrl-group label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;}
+select,input[type=date]{padding:5px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;background:#fff;color:var(--text);}
+.toggle-wrap{display:flex;align-items:center;gap:6px;cursor:pointer;}
+.toggle-wrap input{display:none;}
+.toggle{width:36px;height:20px;background:#ccd4e0;border-radius:20px;position:relative;transition:.2s;}
+.toggle::after{content:'';position:absolute;width:16px;height:16px;top:2px;left:2px;background:#fff;border-radius:50%;transition:.2s;}
+input:checked+.toggle{background:var(--green);}
+input:checked+.toggle::after{left:18px;}
+.dept-tabs{display:flex;gap:2px;}
+.dept-tab{padding:6px 16px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;border:none;background:var(--light);color:var(--muted);}
+.dept-tab.active{background:var(--navy);color:#fff;}
+
+/* ── Main ── */
+.main{padding:20px 24px;max-width:1400px;margin:0 auto;}
+
+/* ── Summary row ── */
+.summary-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+.sum-card{background:#fff;border-radius:10px;padding:16px 20px;border:1px solid var(--border);}
+.sum-card .lbl{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;}
+.sum-card .val{font-size:28px;font-weight:900;color:var(--navy);}
+.sum-card .sub2{font-size:11px;color:var(--muted);margin-top:2px;}
+
+/* ── Line cards ── */
+.lines-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:14px;}
+.lcard{background:#fff;border-radius:12px;border:1px solid var(--border);overflow:hidden;}
+.lcard-head{padding:14px 16px 10px;display:flex;align-items:center;gap:10px;}
+.lcard-head .lname{font-size:15px;font-weight:800;color:var(--navy);flex:1;}
+.oee-badge{font-size:22px;font-weight:900;padding:4px 14px;border-radius:20px;}
+.oee-good{background:#e8f5e9;color:var(--oee-good);}
+.oee-mid{background:#fff3e0;color:var(--oee-mid);}
+.oee-low{background:#ffebee;color:var(--oee-low);}
+.oee-na{background:var(--light);color:var(--muted);}
+
+/* ── APQ row ── */
+.apq-row{display:flex;gap:0;border-top:1px solid var(--border);}
+.apq-cell{flex:1;padding:10px 14px;text-align:center;border-right:1px solid var(--border);}
+.apq-cell:last-child{border-right:none;}
+.apq-cell .apq-lbl{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
+.apq-cell .apq-val{font-size:19px;font-weight:900;margin-top:2px;}
+.apq-a{color:var(--blue);}
+.apq-p{color:var(--green);}
+.apq-q{color:var(--amber);}
+
+/* ── Time bar ── */
+.tbar-wrap{padding:8px 16px 4px;}
+.tbar{height:12px;border-radius:6px;overflow:hidden;display:flex;background:var(--light);}
+.tbar-seg{height:100%;transition:width .3s;}
+.tbar-legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:5px;}
+.tbar-legend span{font-size:10px;color:var(--muted);display:flex;align-items:center;gap:3px;}
+.tbar-legend .dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+
+/* ── Stop events ── */
+.stops{padding:6px 16px 14px;}
+.stop-row{display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-top:1px solid var(--light);font-size:12px;}
+.stop-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;flex-shrink:0;}
+.stop-dur{color:var(--muted);white-space:nowrap;font-weight:600;}
+.stop-info{flex:1;color:var(--muted);}
+.no-stops{font-size:12px;color:var(--muted);padding:8px 0;}
+
+/* ── Rejection entry ── */
+.rej-row{padding:4px 16px 12px;display:flex;align-items:center;gap:8px;border-top:1px solid var(--border);}
+.rej-row label{font-size:11px;color:var(--muted);font-weight:700;}
+.rej-row input[type=number]{width:80px;padding:4px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;}
+.rej-row input[type=text]{flex:1;padding:4px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;}
+.btn-save-rej{padding:4px 12px;background:var(--amber);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;}
+
+/* ── Settings modal ── */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:8000;align-items:center;justify-content:center;}
+.modal-bg.open{display:flex;}
+.modal{background:#fff;border-radius:14px;padding:28px 32px;width:540px;max-height:80vh;overflow-y:auto;}
+.modal h2{font-size:18px;color:var(--navy);margin-bottom:18px;}
+.modal table{width:100%;border-collapse:collapse;}
+.modal th{font-size:11px;font-weight:700;color:var(--muted);text-align:left;padding:4px 8px;text-transform:uppercase;}
+.modal td{padding:6px 8px;border-top:1px solid var(--border);}
+.modal td input{width:100%;padding:5px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;}
+.btn-primary{padding:10px 24px;background:var(--navy);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-top:16px;}
+.loading{text-align:center;padding:60px 24px;color:var(--muted);font-size:14px;}
+
+/* Conv start/end config */
+.conv-config{background:var(--light);border-radius:8px;padding:12px 16px;margin-bottom:16px;}
+.conv-config label{font-size:12px;font-weight:700;color:var(--muted);}
+.conv-config input{padding:5px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;width:90px;margin:0 8px;}
+</style>
+</head>
+<body>
+
+<!-- Access gate -->
+<div id="gate">
+  <div class="gate-card">
+    <h1>IPB OEE</h1>
+    <p>Voer de toegangscode in</p>
+    <input type="password" id="gate-code" placeholder="••••••" maxlength="20"
+           onkeydown="if(event.key==='Enter')checkGate()">
+    <button onclick="checkGate()">Toegang</button>
+    <div class="err" id="gate-err"></div>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app">
+<header>
+  <div class="brand">
+    <div>
+      <h1>IPB OEE Dashboard</h1>
+      <div class="sub" id="period-label">Laden…</div>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <button class="btn-sm btn-out" onclick="openSettings()">⚙ Instellingen</button>
+    <button class="btn-sm btn-out" onclick="gateLogout()">Uitloggen</button>
+  </div>
+</header>
+
+<!-- Controls -->
+<div class="controls">
+  <div class="dept-tabs">
+    <button class="dept-tab active" onclick="setDept('P1',this)">P1</button>
+    <button class="dept-tab" onclick="setDept('P4',this)">P4</button>
+    <button class="dept-tab" onclick="setDept('Converting',this)">Converting</button>
+  </div>
+  <div class="ctrl-group">
+    <label>Periode</label>
+    <select id="period-sel" onchange="onPeriodChange()">
+      <option value="today">Vandaag</option>
+      <option value="yesterday">Gisteren</option>
+      <option value="7d" selected>Afgelopen 7 dagen</option>
+      <option value="30d">Afgelopen 30 dagen</option>
+      <option value="custom">Aangepast</option>
+    </select>
+  </div>
+  <div class="ctrl-group" id="custom-dates" style="display:none;">
+    <input type="date" id="date-from"> <span style="font-size:12px;color:var(--muted);">→</span>
+    <input type="date" id="date-to">
+    <button class="btn-sm" style="background:var(--navy);color:#fff;" onclick="loadAll()">Laden</button>
+  </div>
+  <label class="toggle-wrap" title="Overgang meerekenen als stilstand">
+    <input type="checkbox" id="tog-overgang" onchange="loadAll()">
+    <span class="toggle"></span>
+    <span style="font-size:12px;color:var(--muted);">Overgang als stilstand</span>
+  </label>
+</div>
+
+<!-- Main content -->
+<div class="main">
+  <div class="summary-row">
+    <div class="sum-card"><div class="lbl">Gem. OEE</div><div class="val" id="sum-oee">—</div><div class="sub2">alle lijnen</div></div>
+    <div class="sum-card"><div class="lbl">Beschikbaarheid</div><div class="val" id="sum-a">—</div><div class="sub2">gemiddeld</div></div>
+    <div class="sum-card"><div class="lbl">Prestatie</div><div class="val" id="sum-p">—</div><div class="sub2">gemiddeld</div></div>
+    <div class="sum-card"><div class="lbl">Kwaliteit</div><div class="val" id="sum-q">—</div><div class="sub2">gemiddeld</div></div>
+  </div>
+  <div class="lines-grid" id="lines-grid">
+    <div class="loading">⏳ Data laden…</div>
+  </div>
+</div>
+</div>
+
+<!-- Settings modal -->
+<div class="modal-bg" id="settings-modal">
+  <div class="modal">
+    <h2>⚙ Instellingen</h2>
+    <div class="conv-config">
+      <label>Converting werkuren: van </label>
+      <input type="time" id="conv-start" value="06:00">
+      <label> tot </label>
+      <input type="time" id="conv-end" value="22:00">
+    </div>
+    <table>
+      <thead><tr><th>Lijn</th><th>Doelsnelheid</th><th>Eenheid</th></tr></thead>
+      <tbody id="settings-tbody"></tbody>
+    </table>
+    <button class="btn-primary" onclick="saveSettings()">Opslaan</button>
+    <button class="btn-sm" style="margin-left:12px;margin-top:16px;background:var(--light);color:var(--muted);padding:10px 18px;border-radius:8px;font-size:14px;" onclick="closeSettings()">Annuleren</button>
+  </div>
+</div>
+
+<script>
+// ── Access gate ───────────────────────────────────────────────────────────
+var ACCESS_CODE = 'IPB-OEE-2026';
+function checkGate(){
+  var v = document.getElementById('gate-code').value.trim();
+  if(v === ACCESS_CODE){
+    localStorage.setItem('ipb_oee_access','1');
+    document.getElementById('gate').style.display='none';
+    document.getElementById('app').style.display='block';
+    initApp();
+  } else {
+    document.getElementById('gate-err').textContent='Onjuiste code.';
+    document.getElementById('gate-code').value='';
+  }
+}
+function gateLogout(){
+  localStorage.removeItem('ipb_oee_access');
+  location.reload();
+}
+if(localStorage.getItem('ipb_oee_access')==='1'){
+  document.getElementById('gate').style.display='none';
+  document.getElementById('app').style.display='block';
+}
+
+// ── Firebase ──────────────────────────────────────────────────────────────
+firebase.initializeApp({
+  apiKey:"AIzaSyAMfKRUF-ClkrohVO6PbfqAWp5NB-_9_UI",
+  authDomain:"ipb-ploegbord.firebaseapp.com",
+  databaseURL:"https://ipb-ploegbord-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId:"ipb-ploegbord",
+  storageBucket:"ipb-ploegbord.firebasestorage.app",
+  messagingSenderId:"1032957611236",
+  appId:"1:1032957611236:web:d74b049018b22f97aa30f1"
+});
+var db = firebase.database();
+
+// ── Constants ─────────────────────────────────────────────────────────────
+var LINES = {
+  P1:['L11','L12','L14','L15','L16','L17','L18','IDE'],
+  P4:['L41','L42'],
+  Converting:['swissq','cuir','kirby','cauhe','iijima','iberica','bsp','autolas','manlas','krimpfolie']
+};
+var LINE_LABELS = {
+  L11:'L11',L12:'L12',L14:'L14',L15:'L15',L16:'L16',L17:'L17',L18:'L18',IDE:'IDE',
+  L41:'L41',L42:'L42',
+  swissq:'SwissQ',cuir:'Cuir',kirby:'Kirby',cauhe:'Cauhe',iijima:'Iijima',
+  iberica:'Iberica',bsp:'BSP',autolas:'AutoLas',manlas:'ManLas',krimpfolie:'Krimpfolie'
+};
+var STATUS_COLOR = {
+  productie:'#6ab04c',problemen:'#f5a623',overgang:'#378ADD',
+  messen:'#378ADD',panne:'#C62828',geen:'#c8d0e0',vertraagd:'#E65100',
+  actief:'#6ab04c',stilstand:'#c8d0e0',onderhoud:'#378ADD'
+};
+var STATUS_LBL = {
+  productie:'Productie',problemen:'Problemen',overgang:'Overgang',
+  messen:'Nieuwe messen',panne:'Panne/Stilstand',geen:'Geen orders',
+  vertraagd:'Vertraagd',actief:'Productie',stilstand:'Geen productie',onderhoud:'Onderhoud'
+};
+var DOWN_STATUSES = ['panne','problemen','vertraagd'];
+
+// ── State ─────────────────────────────────────────────────────────────────
+var currentDept = 'P1';
+var settings = {}; // {line: {target, unit}}
+var convStart = '06:00';
+var convEnd   = '22:00';
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+function p2(n){ return String(n).padStart(2,'0'); }
+function pct(v){ return v !== null && !isNaN(v) ? Math.round(v*100)+'%' : '—'; }
+function oeeClass(v){
+  if(v===null) return 'oee-na';
+  var p=v*100;
+  return p>=80?'oee-good':p>=65?'oee-mid':'oee-low';
+}
+function fmtDur(ms){
+  if(!ms||ms<0) return '0 min';
+  var m=Math.round(ms/60000);
+  if(m<60) return m+' min';
+  return Math.floor(m/60)+'u '+(m%60)+'min';
+}
+
+// ── Period calculation ────────────────────────────────────────────────────
+function getPeriod(){
+  var sel = document.getElementById('period-sel').value;
+  var now = new Date();
+  var endMs, startMs;
+  if(sel==='today'){
+    startMs=new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime();
+    endMs=Date.now();
+  } else if(sel==='yesterday'){
+    var y=new Date(now.getFullYear(),now.getMonth(),now.getDate()-1);
+    startMs=y.getTime(); endMs=startMs+86400000;
+  } else if(sel==='7d'){
+    endMs=Date.now(); startMs=endMs-7*86400000;
+  } else if(sel==='30d'){
+    endMs=Date.now(); startMs=endMs-30*86400000;
+  } else {
+    var f=document.getElementById('date-from').value;
+    var t=document.getElementById('date-to').value;
+    if(!f||!t) return null;
+    startMs=new Date(f).getTime();
+    endMs=new Date(t).getTime()+86400000;
+  }
+  return {startMs:startMs,endMs:endMs};
+}
+function onPeriodChange(){
+  var sel=document.getElementById('period-sel').value;
+  document.getElementById('custom-dates').style.display=sel==='custom'?'flex':'none';
+  if(sel!=='custom') loadAll();
+}
+
+// ── Planned time calculation ──────────────────────────────────────────────
+// Returns true if timestamp falls within planned schedule for dept
+function isPlanned(ms, dept){
+  var d=new Date(ms);
+  var day=d.getDay(); // 0=Sun
+  if(dept==='P4'){
+    if(day===0||day===6) return false; // weekend
+  }
+  if(dept==='Converting'){
+    // Within conv hours
+    var h=d.getHours(), m2=d.getMinutes();
+    var startP=convStart.split(':'); var endP=convEnd.split(':');
+    var startMin=parseInt(startP[0])*60+parseInt(startP[1]);
+    var endMin=parseInt(endP[0])*60+parseInt(endP[1]);
+    var curMin=h*60+m2;
+    if(curMin<startMin||curMin>=endMin) return false;
+  }
+  return true;
+}
+
+// ── Entry → ms ───────────────────────────────────────────────────────────
+function entryToMs(e){
+  try{
+    if(!e.timeVal||!e.date) return null;
+    var dp=e.date.split(/[-\/]/);
+    var tp=e.timeVal.split(':');
+    var yr,mo,dy;
+    if(dp[0].length===4){yr=+dp[0];mo=+dp[1]-1;dy=+dp[2];}
+    else{dy=+dp[0];mo=+dp[1]-1;yr=+dp[2];}
+    return new Date(yr,mo,dy,+tp[0],+tp[1],0).getTime();
+  }catch(err){return null;}
+}
+
+// ── OEE Calculation per line ──────────────────────────────────────────────
+function calcOEE(rawHistory, line, dept, startMs, endMs){
+  var includeOvergang = document.getElementById('tog-overgang').checked;
+  var cfg = settings[line]||{};
+  var targetSpeed = parseFloat(cfg.target)||0;
+
+  // Build entry list with ms timestamps
+  var entries = (rawHistory||[]).map(function(e){
+    var ms=entryToMs(e);
+    return ms?Object.assign({},e,{_ms:ms}):null;
+  }).filter(Boolean).sort(function(a,b){return a._ms-b._ms;});
+
+  // Find carry-over before period
+  var carry=null;
+  entries.forEach(function(e){
+    if(e._ms<startMs) carry=e;
+  });
+
+  // Build segments within [startMs, endMs]
+  var pts=[]; // [{ms, status, speed, operator, note}]
+  if(carry) pts.push({ms:startMs, status:carry.status, speed:parseFloat(carry.snelheid)||0, operator:carry.operator||'', note:carry.note||''});
+  entries.forEach(function(e){
+    if(e._ms>=startMs&&e._ms<endMs)
+      pts.push({ms:e._ms, status:e.status, speed:parseFloat(e.snelheid)||0, operator:e.operator||'', note:e.note||''});
+  });
+  pts.push({ms:endMs, status:'__end', speed:0});
+
+  // Accumulate time per status and output
+  var totalMs=0, plannedMs=0, downMs=0, geenMs=0, overgangMs=0;
+  var actualOutput=0;
+  var stopEvents=[];
+  var statusDist={};
+
+  for(var i=0;i<pts.length-1;i++){
+    var seg=pts[i], next=pts[i+1];
+    var dur=next.ms-seg.ms;
+    if(dur<=0) continue;
+
+    // Check if this segment is within planned schedule
+    // Sample midpoint
+    var midMs=seg.ms+dur/2;
+    var planned=isPlanned(midMs,dept);
+
+    totalMs+=dur;
+    statusDist[seg.status]=(statusDist[seg.status]||0)+dur;
+
+    if(seg.status==='geen'||seg.status==='stilstand'||!planned){
+      geenMs+=dur; // unplanned / no orders
+      continue;
+    }
+
+    plannedMs+=dur;
+
+    var isDown=DOWN_STATUSES.includes(seg.status);
+    var isOvergang=seg.status==='overgang'||seg.status==='messen';
+
+    if(isDown){
+      downMs+=dur;
+      stopEvents.push({status:seg.status, dur:dur, operator:seg.operator, note:seg.note, ms:seg.ms});
+    } else if(isOvergang){
+      overgangMs+=dur;
+      if(includeOvergang) downMs+=dur;
+    } else if(seg.status==='productie'||seg.status==='actief'){
+      // Integrate output: speed * duration in hours
+      var hrs=dur/3600000;
+      actualOutput+=seg.speed*hrs;
+    }
+  }
+
+  var runMs=plannedMs-downMs;
+  var availability=plannedMs>0?runMs/plannedMs:null;
+  var performance=null;
+  if(runMs>0&&targetSpeed>0){
+    var theorOutput=(runMs/3600000)*targetSpeed;
+    performance=theorOutput>0?Math.min(actualOutput/theorOutput,1.5):null;
+    // Cap at 150% (sensor error protection)
+    if(performance!==null&&performance>1) performance=Math.min(performance,1.0);
+  }
+
+  return {
+    availability, performance,
+    plannedMs, downMs, runMs, geenMs, overgangMs,
+    actualOutput: Math.round(actualOutput),
+    targetSpeed, stopEvents, statusDist, totalMs
+  };
+}
+
+// ── Rejection data ────────────────────────────────────────────────────────
+var rejData={}; // {line: [{amount, note, date, operator}]}
+
+function loadRejections(dept, startMs, endMs, cb){
+  rejData={};
+  var lines=LINES[dept]||[];
+  var done=0;
+  if(!lines.length){cb();return;}
+  lines.forEach(function(line){
+    db.ref('oee-rejections/'+dept+'/'+line).once('value',function(snap){
+      var all=snap.val()||{};
+      rejData[line]=[];
+      Object.values(all).forEach(function(r){
+        var ms=r.ts||0;
+        if(ms>=startMs&&ms<endMs) rejData[line].push(r);
+      });
+      done++;
+      if(done===lines.length) cb();
+    });
+  });
+}
+
+function saveRejection(dept, line, amount, note){
+  var op=prompt('Jouw naam:','Hannes Bruyneel');
+  if(!op) return;
+  db.ref('oee-rejections/'+dept+'/'+line).push({
+    amount:parseFloat(amount)||0, note:note||'',
+    operator:op, ts:Date.now(),
+    date:new Date().toLocaleDateString('nl-BE')
+  }).then(function(){
+    alert('Afgekeurde hoeveelheid opgeslagen.');
+    loadAll();
+  });
+}
+
+// ── Settings ──────────────────────────────────────────────────────────────
+function loadSettings(){
+  db.ref('oee-config').once('value',function(snap){
+    var v=snap.val()||{};
+    settings=v.lines||{};
+    convStart=v.convStart||'06:00';
+    convEnd=v.convEnd||'22:00';
+    document.getElementById('conv-start').value=convStart;
+    document.getElementById('conv-end').value=convEnd;
+  });
+}
+function openSettings(){
+  var modal=document.getElementById('settings-modal');
+  var tbody=document.getElementById('settings-tbody');
+  tbody.innerHTML='';
+  var allLines=['L11','L12','L14','L15','L16','L17','L18','IDE','L41','L42',
+    'swissq','cuir','kirby','cauhe','iijima','iberica','bsp','autolas','manlas','krimpfolie'];
+  allLines.forEach(function(l){
+    var cfg=settings[l]||{target:'',unit:'kg/h'};
+    var isConv=['swissq','cuir','kirby','cauhe','iijima','iberica','bsp','autolas','manlas','krimpfolie'].includes(l);
+    var defUnit=isConv?'st/h':'kg/h';
+    tbody.innerHTML+='<tr>'
+      +'<td style="font-weight:700;">'+(LINE_LABELS[l]||l)+'</td>'
+      +'<td><input type="number" id="tgt-'+l+'" value="'+(cfg.target||'')+'" placeholder="bv. 250" min="0"></td>'
+      +'<td><select id="unit-'+l+'"><option value="kg/h"'+((cfg.unit||defUnit)==='kg/h'?' selected':'')+'>'
+      +'kg/h</option><option value="st/h"'+((cfg.unit||defUnit)==='st/h'?' selected':'')+'>st/h</option></select></td>'
+      +'</tr>';
+  });
+  modal.classList.add('open');
+}
+function closeSettings(){document.getElementById('settings-modal').classList.remove('open');}
+function saveSettings(){
+  var allLines=['L11','L12','L14','L15','L16','L17','L18','IDE','L41','L42',
+    'swissq','cuir','kirby','cauhe','iijima','iberica','bsp','autolas','manlas','krimpfolie'];
+  var newSettings={};
+  allLines.forEach(function(l){
+    var t=document.getElementById('tgt-'+l);
+    var u=document.getElementById('unit-'+l);
+    if(t&&t.value) newSettings[l]={target:parseFloat(t.value),unit:u?u.value:'kg/h'};
+  });
+  convStart=document.getElementById('conv-start').value;
+  convEnd=document.getElementById('conv-end').value;
+  db.ref('oee-config').set({lines:newSettings,convStart,convEnd}).then(function(){
+    settings=newSettings;
+    closeSettings();
+    loadAll();
+  });
+}
+
+// ── Render ────────────────────────────────────────────────────────────────
+function doSaveRej(btn){
+  var wrap=btn.parentElement;
+  var amtEl=wrap.querySelector('input[type=number]');
+  var noteEl=wrap.querySelector('input[type=text]');
+  var line=wrap.getAttribute('data-line');
+  var dept2=wrap.getAttribute('data-dept');
+  saveRejection(dept2,line,amtEl.value,noteEl.value);
+}
+function renderLine(line, oeeResult, rejEntries, dept){
+  var r=oeeResult;
+  var totalRej=rejEntries?rejEntries.reduce(function(s,e){return s+(e.amount||0);},0):0;
+  var quality=null;
+  if(r.actualOutput>0&&totalRej>=0){
+    quality=Math.max(0,Math.min(1,(r.actualOutput-totalRej)/r.actualOutput));
+  }
+
+  var oee=null;
+  if(r.availability!==null&&r.performance!==null&&quality!==null)
+    oee=r.availability*r.performance*quality;
+  else if(r.availability!==null&&r.performance!==null)
+    oee=r.availability*r.performance;
+  else if(r.availability!==null)
+    oee=r.availability;
+
+  var oc=oee!==null?oeeClass(oee):'oee-na';
+  var oeeVal=oee!==null?Math.round(oee*100)+'%':'—';
+
+  // Time bar
+  var bars='';
+  var order=['productie','actief','problemen','vertraagd','panne','overgang','messen','geen','stilstand'];
+  var total=r.totalMs||1;
+  order.forEach(function(s){
+    var d=r.statusDist[s]||0;
+    if(!d) return;
+    var w=(d/total*100).toFixed(1);
+    bars+='<div class="tbar-seg" style="width:'+w+'%;background:'+(STATUS_COLOR[s]||'#ccc')+'" title="'+(STATUS_LBL[s]||s)+': '+fmtDur(d)+'"></div>';
+  });
+
+  // Legend
+  var legend='';
+  order.forEach(function(s){
+    if(r.statusDist[s]>0)
+      legend+='<span><span class="dot" style="background:'+(STATUS_COLOR[s]||'#ccc')+'"></span>'+(STATUS_LBL[s]||s)+' '+fmtDur(r.statusDist[s])+'</span>';
+  });
+
+  // Stop events (sorted by duration desc)
+  var stops='';
+  if(r.stopEvents.length){
+    var sorted=r.stopEvents.slice().sort(function(a,b){return b.dur-a.dur;});
+    sorted.slice(0,5).forEach(function(e){
+      var col=STATUS_COLOR[e.status]||'#aaa';
+      var lbl=STATUS_LBL[e.status]||e.status;
+      stops+='<div class="stop-row">'
+        +'<span class="stop-badge" style="background:'+col+'20;color:'+col+';">'+lbl+'</span>'
+        +'<span class="stop-dur">'+fmtDur(e.dur)+'</span>'
+        +'<span class="stop-info">'+(e.operator||'')+(e.note?' · '+e.note:'')+'</span>'
+        +'</div>';
+    });
+    if(r.stopEvents.length>5) stops+='<div class="no-stops">+'+(r.stopEvents.length-5)+' meer…</div>';
+  } else {
+    stops='<div class="no-stops">Geen stilstanden</div>';
+  }
+
+  // Rejection info
+  var rejInfo='';
+  if(rejEntries&&rejEntries.length){
+    rejInfo='<span style="font-size:11px;color:var(--amber);font-weight:700;">⚠ '+Math.round(totalRej)+' '+(settings[line]&&settings[line].unit||'stuks')+' afgekeurd</span>';
+  }
+
+  return '<div class="lcard">'
+    +'<div class="lcard-head">'
+    +'<span class="lname">'+(LINE_LABELS[line]||line)+'</span>'
+    +(rejInfo||'')
+    +'<span class="oee-badge '+oc+'">'+oeeVal+'</span>'
+    +'</div>'
+    +'<div class="apq-row">'
+    +'<div class="apq-cell"><div class="apq-lbl">Beschikbaarheid</div><div class="apq-val apq-a">'+pct(r.availability)+'</div></div>'
+    +'<div class="apq-cell"><div class="apq-lbl">Prestatie</div><div class="apq-val apq-p">'+pct(r.performance)+'</div></div>'
+    +'<div class="apq-cell"><div class="apq-lbl">Kwaliteit</div><div class="apq-val apq-q">'+pct(quality)+'</div></div>'
+    +'</div>'
+    +'<div class="tbar-wrap"><div class="tbar">'+bars+'</div><div class="tbar-legend">'+legend+'</div></div>'
+    +'<div class="stops">'+stops+'</div>'
+    +'<div class="rej-row" data-line="'+line+'" data-dept="'+dept+'">' 
+    +'<label>Afkeur:</label>'
+    +'<input type="number" id="rej-amt-'+line+'" placeholder="0" min="0" style="width:80px;">'
+    +'<input type="text" id="rej-note-'+line+'" placeholder="Reden…">'
+    +'<button class="btn-save-rej" onclick="doSaveRej(this)">Opslaan</button>'
+    +'</div>'
+    +'</div>';
+}
+
+// ── Load & render all ─────────────────────────────────────────────────────
+function loadAll(){
+  var p=getPeriod();
+  if(!p) return;
+
+  // Period label
+  var f=new Date(p.startMs),t2=new Date(p.endMs-1);
+  document.getElementById('period-label').textContent=
+    f.toLocaleDateString('nl-BE')+' — '+t2.toLocaleDateString('nl-BE');
+
+  var grid=document.getElementById('lines-grid');
+  grid.innerHTML='<div class="loading">⏳ Data laden…</div>';
+
+  var lines=LINES[currentDept]||[];
+  var historyData={};
+  var done=0;
+
+  lines.forEach(function(line){
+    db.ref('operator-history/'+currentDept+'/'+line).once('value',function(snap){
+      var all=snap.val()||{};
+      historyData[line]=Object.values(all);
+      done++;
+      if(done===lines.length){
+        loadRejections(currentDept,p.startMs,p.endMs,function(){
+          renderAll(historyData,p.startMs,p.endMs);
+        });
+      }
+    });
+  });
+}
+
+function renderAll(historyData,startMs,endMs){
+  var lines=LINES[currentDept]||[];
+  var grid=document.getElementById('lines-grid');
+  grid.innerHTML='';
+
+  var sumA=[],sumP=[],sumQ=[],sumOEE=[];
+
+  lines.forEach(function(line){
+    var r=calcOEE(historyData[line]||[],line,currentDept,startMs,endMs);
+    var rejEntries=rejData[line]||[];
+    var totalRej=rejEntries.reduce(function(s,e){return s+(e.amount||0);},0);
+    var quality=r.actualOutput>0?Math.max(0,Math.min(1,(r.actualOutput-totalRej)/r.actualOutput)):null;
+    if(r.availability!==null) sumA.push(r.availability);
+    if(r.performance!==null)  sumP.push(r.performance);
+    if(quality!==null)        sumQ.push(quality);
+    var oee=r.availability!==null&&r.performance!==null&&quality!==null
+      ?r.availability*r.performance*quality
+      :r.availability!==null&&r.performance!==null
+      ?r.availability*r.performance:null;
+    if(oee!==null) sumOEE.push(oee);
+    grid.innerHTML+=renderLine(line,r,rejEntries,currentDept);
+  });
+
+  var avg=function(arr){return arr.length?arr.reduce(function(a,b){return a+b;},0)/arr.length:null;};
+  document.getElementById('sum-oee').textContent=pct(avg(sumOEE));
+  document.getElementById('sum-a').textContent=pct(avg(sumA));
+  document.getElementById('sum-p').textContent=pct(avg(sumP));
+  document.getElementById('sum-q').textContent=pct(avg(sumQ));
+}
+
+// ── Dept switch ───────────────────────────────────────────────────────────
+function setDept(d,btn){
+  currentDept=d;
+  document.querySelectorAll('.dept-tab').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  loadAll();
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+function initApp(){
+  loadSettings();
+  loadAll();
+}
+if(localStorage.getItem('ipb_oee_access')==='1'){
+  initApp();
+}
+</script>
+</body>
+</html>
