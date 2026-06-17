@@ -118,6 +118,31 @@ input:checked+.toggle::after{left:18px;}
 .btn-primary{padding:10px 24px;background:var(--navy);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-top:16px;}
 .loading{text-align:center;padding:60px 24px;color:var(--muted);font-size:14px;}
 
+/* ── Stop analysis ── */
+.stop-analysis{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;}
+.scard2{background:#fff;border-radius:12px;border:1px solid var(--border);overflow:hidden;}
+.scard2-head{padding:12px 16px;background:var(--light);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.scard2-head .lname{font-size:14px;font-weight:800;color:var(--navy);}
+.stop-reason{display:flex;align-items:center;gap:8px;padding:8px 16px;border-bottom:1px solid var(--light);font-size:12px;}
+.stop-reason .sr-bar-wrap{flex:1;height:6px;background:var(--light);border-radius:3px;overflow:hidden;}
+.stop-reason .sr-bar{height:100%;border-radius:3px;}
+.stop-reason .sr-cnt{font-size:11px;color:var(--muted);white-space:nowrap;}
+.stop-reason .sr-dur{font-size:11px;font-weight:700;color:var(--navy);white-space:nowrap;min-width:55px;text-align:right;}
+
+/* ── Operator analysis ── */
+.ops-table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;border:1px solid var(--border);}
+.ops-table th{background:var(--navy);color:#fff;padding:10px 14px;font-size:11px;text-align:left;font-weight:700;text-transform:uppercase;letter-spacing:.04em;}
+.ops-table td{padding:10px 14px;border-bottom:1px solid var(--light);font-size:13px;vertical-align:middle;}
+.ops-table tr:last-child td{border-bottom:none;}
+.ops-table tr:hover td{background:var(--light);}
+.rank-badge{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;flex-shrink:0;}
+.rank-1{background:#FFD700;color:#7a5f00;}
+.rank-2{background:#C0C0C0;color:#444;}
+.rank-3{background:#CD7F32;color:#fff;}
+.rank-n{background:var(--light);color:var(--muted);}
+.perf-bar-wrap{display:flex;align-items:center;gap:8px;}
+.perf-bar{height:8px;border-radius:4px;background:var(--green);transition:width .3s;}
+
 /* Conv start/end config */
 .conv-config{background:var(--light);border-radius:8px;padding:12px 16px;margin-bottom:16px;}
 .conv-config label{font-size:12px;font-weight:700;color:var(--muted);}
@@ -160,6 +185,12 @@ input:checked+.toggle::after{left:18px;}
     <button class="dept-tab" onclick="setDept('P4',this)">P4</button>
     <button class="dept-tab" onclick="setDept('Converting',this)">Converting</button>
   </div>
+  <div style="width:1px;height:28px;background:var(--border);margin:0 4px;"></div>
+  <div class="dept-tabs" id="view-tabs">
+    <button class="dept-tab active" id="vt-oee" onclick="setView('oee',this)">📊 OEE</button>
+    <button class="dept-tab" id="vt-stops" onclick="setView('stops',this)">🔴 Stopanalyse</button>
+    <button class="dept-tab" id="vt-ops" onclick="setView('ops',this)">👤 Operatoren</button>
+  </div>
   <div class="ctrl-group">
     <label>Periode</label>
     <select id="period-sel" onchange="onPeriodChange()">
@@ -184,6 +215,7 @@ input:checked+.toggle::after{left:18px;}
 
 <!-- Main content -->
 <div class="main">
+  <div id="view-oee">
   <div class="summary-row">
     <div class="sum-card"><div class="lbl">Gem. OEE</div><div class="val" id="sum-oee">—</div><div class="sub2">alle lijnen</div></div>
     <div class="sum-card"><div class="lbl">Beschikbaarheid</div><div class="val" id="sum-a">—</div><div class="sub2">gemiddeld</div></div>
@@ -192,6 +224,24 @@ input:checked+.toggle::after{left:18px;}
   </div>
   <div class="lines-grid" id="lines-grid">
     <div class="loading">⏳ Data laden…</div>
+  </div>
+  </div><!-- /view-oee -->
+
+  <div id="view-stops" style="display:none;">
+    <div class="stop-analysis" id="stop-grid">
+      <div class="loading">⏳ Data laden…</div>
+    </div>
+  </div>
+
+  <div id="view-ops" style="display:none;">
+    <table class="ops-table" id="ops-table">
+      <thead><tr>
+        <th>#</th><th>Operator</th><th>Looptijd</th>
+        <th>Gem. snelheid</th><th>Prestatie</th>
+        <th>Lijnen</th><th>Stops</th>
+      </tr></thead>
+      <tbody id="ops-tbody"><tr><td colspan="7" style="text-align:center;padding:30px;color:var(--muted);">⏳ Data laden…</td></tr></tbody>
+    </table>
   </div>
 </div>
 </div>
@@ -327,23 +377,34 @@ function onPeriodChange(){
 }
 
 // ── Planned time calculation ──────────────────────────────────────────────
-// Returns true if timestamp falls within planned schedule for dept
-function isPlanned(ms, dept){
-  var d=new Date(ms);
-  var day=d.getDay(); // 0=Sun
-  if(dept==='P4'){
-    if(day===0||day===6) return false; // weekend
+// Returns the EXACT planned milliseconds within [startMs, endMs] for a dept
+// Iterates day-by-day for correctness across schedule boundaries
+function plannedOverlapMs(startMs, endMs, dept) {
+  if(endMs <= startMs) return 0;
+  var planned = 0;
+  // Iterate in 1-hour chunks for precision
+  var CHUNK = 3600000;
+  var cur = startMs;
+  while(cur < endMs) {
+    var next = Math.min(cur + CHUNK, endMs);
+    var mid = (cur + next) / 2;
+    var d = new Date(mid);
+    var day = d.getDay();
+    var ok = true;
+    if(dept === 'P4') {
+      if(day === 0 || day === 6) ok = false;
+    }
+    if(dept === 'Converting') {
+      var sp = convStart.split(':'), ep = convEnd.split(':');
+      var sMin = parseInt(sp[0])*60 + parseInt(sp[1]);
+      var eMin = parseInt(ep[0])*60 + parseInt(ep[1]);
+      var cMin = d.getHours()*60 + d.getMinutes();
+      if(cMin < sMin || cMin >= eMin) ok = false;
+    }
+    if(ok) planned += next - cur;
+    cur = next;
   }
-  if(dept==='Converting'){
-    // Within conv hours
-    var h=d.getHours(), m2=d.getMinutes();
-    var startP=convStart.split(':'); var endP=convEnd.split(':');
-    var startMin=parseInt(startP[0])*60+parseInt(startP[1]);
-    var endMin=parseInt(endP[0])*60+parseInt(endP[1]);
-    var curMin=h*60+m2;
-    if(curMin<startMin||curMin>=endMin) return false;
-  }
-  return true;
+  return planned;
 }
 
 // ── Entry → ms ───────────────────────────────────────────────────────────
@@ -397,33 +458,39 @@ function calcOEE(rawHistory, line, dept, startMs, endMs){
     var dur=next.ms-seg.ms;
     if(dur<=0) continue;
 
-    // Check if this segment is within planned schedule
-    // Sample midpoint
-    var midMs=seg.ms+dur/2;
-    var planned=isPlanned(midMs,dept);
-
     totalMs+=dur;
     statusDist[seg.status]=(statusDist[seg.status]||0)+dur;
 
-    if(seg.status==='geen'||seg.status==='stilstand'||!planned){
-      geenMs+=dur; // unplanned / no orders
+    // Bereken EXACTE geplande overlap (correct bij segmenten over weekendgrenzen)
+    var plannedDur = plannedOverlapMs(seg.ms, next.ms, dept);
+    var unplannedDur = dur - plannedDur;
+
+    // Ongeplande tijd (buiten schedule) en "geen orders" tellen niet mee
+    if(seg.status==='geen'||seg.status==='stilstand'){
+      geenMs+=dur;
       continue;
     }
+    if(unplannedDur > 0) geenMs+=unplannedDur;
+    if(plannedDur <= 0) continue;
 
-    plannedMs+=dur;
+    plannedMs+=plannedDur;
 
     var isDown=DOWN_STATUSES.includes(seg.status);
     var isOvergang=seg.status==='overgang'||seg.status==='messen';
+    var durPct=plannedDur/dur; // fractie van segment dat gepland is
 
     if(isDown){
-      downMs+=dur;
-      stopEvents.push({status:seg.status, dur:dur, operator:seg.operator, note:seg.note, ms:seg.ms});
+      downMs+=plannedDur;
+      stopEvents.push({
+        status:seg.status, dur:plannedDur,
+        operator:seg.operator, note:seg.note, ms:seg.ms
+      });
     } else if(isOvergang){
-      overgangMs+=dur;
-      if(includeOvergang) downMs+=dur;
+      overgangMs+=plannedDur;
+      if(includeOvergang) downMs+=plannedDur;
     } else if(seg.status==='productie'||seg.status==='actief'){
-      // Integrate output: speed * duration in hours
-      var hrs=dur/3600000;
+      // Output enkel voor gepland gedeelte
+      var hrs=plannedDur/3600000;
       actualOutput+=seg.speed*hrs;
     }
   }
@@ -622,6 +689,181 @@ function renderLine(line, oeeResult, rejEntries, dept){
     +'</div>';
 }
 
+
+// ── View management ───────────────────────────────────────────────────────
+var currentView = 'oee';
+function setView(v, btn) {
+  currentView = v;
+  ['oee','stops','ops'].forEach(function(id) {
+    document.getElementById('view-'+id).style.display = id===v ? 'block' : 'none';
+  });
+  document.querySelectorAll('#view-tabs .dept-tab').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  renderCurrentView();
+}
+function renderCurrentView() {
+  if(currentView==='stops') renderStopAnalysis();
+  else if(currentView==='ops') renderOperatorAnalysis();
+}
+
+// ── Stop analysis ─────────────────────────────────────────────────────────
+var allHistoryData = {};
+function renderStopAnalysis() {
+  var grid = document.getElementById('stop-grid');
+  var lines = LINES[currentDept]||[];
+  if(!Object.keys(allHistoryData).length){ grid.innerHTML='<div class="loading">Laad eerst OEE-data via het OEE-tabblad.</div>'; return; }
+  grid.innerHTML='';
+
+  var globalStops = []; // all stops across all lines for sorting
+
+  lines.forEach(function(line) {
+    var raw = allHistoryData[line]||[];
+    var entries = raw.map(function(e){ var ms=entryToMs(e); return ms?Object.assign({},e,{_ms:ms}):null; })
+      .filter(Boolean).sort(function(a,b){return a._ms-b._ms;});
+
+    // Build stop segments
+    var stops = [];
+    for(var i=0;i<entries.length-1;i++) {
+      var e=entries[i], next=entries[i+1];
+      if(!DOWN_STATUSES.includes(e.status)) continue;
+      var dur = next._ms - e._ms;
+      stops.push({status:e.status, dur:dur, note:(e.note||'').trim(), operator:e.operator||'', ms:e._ms, line:line});
+    }
+
+    if(!stops.length) return;
+    globalStops = globalStops.concat(stops);
+
+    // Group by reason (note) within this line
+    var byReason = {};
+    stops.forEach(function(s) {
+      var key = s.note || '(geen opmerking)';
+      if(!byReason[key]) byReason[key]={note:key,count:0,totalDur:0,statuses:{}};
+      byReason[key].count++;
+      byReason[key].totalDur+=s.dur;
+      byReason[key].statuses[s.status]=(byReason[key].statuses[s.status]||0)+1;
+    });
+
+    var reasons = Object.values(byReason).sort(function(a,b){return b.totalDur-a.totalDur;});
+    var maxDur = reasons[0]?reasons[0].totalDur:1;
+    var totalStopDur = stops.reduce(function(s,e){return s+e.dur;},0);
+
+    var card = document.createElement('div');
+    card.className='scard2';
+    var head = '<div class="scard2-head">'
+      +'<span class="lname">'+(LINE_LABELS[line]||line)+'</span>'
+      +'<span style="font-size:11px;color:var(--muted);">'+stops.length+' stop'+(stops.length>1?'s':'')+' · '+fmtDur(totalStopDur)+'</span>'
+      +'</div>';
+
+    var body='';
+    reasons.slice(0,8).forEach(function(r) {
+      var pct2=(r.totalDur/maxDur*100).toFixed(0);
+      // Dominant status color
+      var domStatus=Object.entries(r.statuses).sort(function(a,b){return b[1]-a[1];})[0][0];
+      var col=STATUS_COLOR[domStatus]||'#aaa';
+      body+='<div class="stop-reason">'
+        +'<span style="font-size:10px;font-weight:700;color:'+col+';min-width:60px;">'+STATUS_LBL[domStatus]+'</span>'
+        +'<span style="flex:1;font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+r.note+'">'+r.note+'</span>'
+        +'<div class="sr-bar-wrap"><div class="sr-bar" style="width:'+pct2+'%;background:'+col+';"></div></div>'
+        +'<span class="sr-cnt">'+r.count+'×</span>'
+        +'<span class="sr-dur">'+fmtDur(r.totalDur)+'</span>'
+        +'</div>';
+    });
+
+    card.innerHTML=head+body;
+    grid.appendChild(card);
+  });
+
+  if(!grid.children.length)
+    grid.innerHTML='<div class="loading">Geen stopdata gevonden voor deze periode.</div>';
+}
+
+// ── Operator analysis ─────────────────────────────────────────────────────
+function renderOperatorAnalysis() {
+  var tbody = document.getElementById('ops-tbody');
+  var lines = LINES[currentDept]||[];
+  if(!Object.keys(allHistoryData).length){ tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--muted);">Laad eerst OEE-data via het OEE-tabblad.</td></tr>'; return; }
+
+  // Collect all entries per operator
+  var opMap = {}; // name → {runMs, totalOutput, lines:Set, stopCount, speedSamples:[]}
+  lines.forEach(function(line) {
+    var raw = allHistoryData[line]||[];
+    var entries = raw.map(function(e){ var ms=entryToMs(e); return ms?Object.assign({},e,{_ms:ms}):null; })
+      .filter(Boolean).sort(function(a,b){return a._ms-b._ms;});
+    var cfg = settings[line]||{};
+    var target = parseFloat(cfg.target)||0;
+
+    for(var i=0;i<entries.length-1;i++) {
+      var e=entries[i], next=entries[i+1];
+      var op = (e.operator||'').trim();
+      if(!op||op==='-'||op==='—') continue;
+      if(!opMap[op]) opMap[op]={runMs:0,totalOutput:0,lines:new Set(),stopCount:0,speedEntries:[],targetMs:0};
+      opMap[op].lines.add(line);
+
+      var dur = next._ms - e._ms;
+      var plannedDur = plannedOverlapMs(e._ms, next._ms, currentDept);
+      if(plannedDur<=0) continue;
+
+      if(e.status==='productie'||e.status==='actief') {
+        var spd=parseFloat(e.snelheid)||0;
+        opMap[op].runMs+=plannedDur;
+        opMap[op].totalOutput+=spd*(plannedDur/3600000);
+        if(spd>0&&target>0){ opMap[op].speedEntries.push({spd:spd,dur:plannedDur,target:target}); }
+      } else if(DOWN_STATUSES.includes(e.status)) {
+        opMap[op].stopCount++;
+      }
+    }
+  });
+
+  // Sort by performance (weighted avg speed / target), then by run time
+  var ops = Object.entries(opMap).map(function(e){
+    var name=e[0], d=e[1];
+    var weightedPerf=null;
+    var totalDurForPerf=0;
+    d.speedEntries.forEach(function(s){ totalDurForPerf+=s.dur; });
+    if(totalDurForPerf>0) {
+      var num=d.speedEntries.reduce(function(acc,s){return acc+s.spd/s.target*s.dur;},0);
+      weightedPerf=num/totalDurForPerf;
+    }
+    var avgSpeed=d.runMs>0?d.totalOutput/(d.runMs/3600000):0;
+    return {name:name, runMs:d.runMs, totalOutput:Math.round(d.totalOutput),
+            avgSpeed:Math.round(avgSpeed*10)/10, perf:weightedPerf,
+            lines:Array.from(d.lines), stopCount:d.stopCount};
+  }).filter(function(o){return o.runMs>60000;}) // min 1 min
+    .sort(function(a,b){
+      if(a.perf!==null&&b.perf!==null) return b.perf-a.perf;
+      if(a.perf!==null) return -1;
+      if(b.perf!==null) return 1;
+      return b.runMs-a.runMs;
+    });
+
+  tbody.innerHTML='';
+  ops.forEach(function(op,idx) {
+    var rankClass=idx===0?'rank-1':idx===1?'rank-2':idx===2?'rank-3':'rank-n';
+    var rankLabel=idx===0?'🥇':idx===1?'🥈':idx===2?'🥉':'#'+(idx+1);
+    var perfHtml='—';
+    if(op.perf!==null) {
+      var pp=Math.min(Math.round(op.perf*100),150);
+      var perfCol=pp>=80?'var(--oee-good)':pp>=65?'var(--oee-mid)':'var(--oee-low)';
+      perfHtml='<div class="perf-bar-wrap">'
+        +'<div style="width:80px;height:8px;background:var(--light);border-radius:4px;overflow:hidden;">'
+        +'<div class="perf-bar" style="width:'+Math.min(pp,100)+'%;background:'+perfCol+';"></div></div>'
+        +'<span style="font-size:12px;font-weight:700;color:'+perfCol+';">'+pp+'%</span>'
+        +'</div>';
+    }
+    var unit=op.lines.length>0&&settings[op.lines[0]]?settings[op.lines[0]].unit||'kg/h':'kg/h';
+    tbody.innerHTML+='<tr>'
+      +'<td><div class="rank-badge '+rankClass+'">'+rankLabel+'</div></td>'
+      +'<td style="font-weight:700;">'+op.name+'</td>'
+      +'<td>'+fmtDur(op.runMs)+'</td>'
+      +'<td>'+(op.avgSpeed>0?op.avgSpeed+' '+unit:'—')+'</td>'
+      +'<td>'+perfHtml+'</td>'
+      +'<td style="font-size:11px;color:var(--muted);">'+op.lines.map(function(l){return LINE_LABELS[l]||l;}).join(', ')+'</td>'
+      +'<td style="text-align:center;">'+(op.stopCount>0?'<span style="color:var(--red);font-weight:700;">'+op.stopCount+'</span>':'0')+'</td>'
+      +'</tr>';
+  });
+  if(!ops.length) tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--muted);">Geen operatordata gevonden.</td></tr>';
+}
+
 // ── Load & render all ─────────────────────────────────────────────────────
 function loadAll(){
   var p=getPeriod();
@@ -654,6 +896,7 @@ function loadAll(){
 }
 
 function renderAll(historyData,startMs,endMs){
+  allHistoryData = historyData; // bewaar voor stop/operator analyse
   var lines=LINES[currentDept]||[];
   var grid=document.getElementById('lines-grid');
   grid.innerHTML='';
@@ -681,6 +924,8 @@ function renderAll(historyData,startMs,endMs){
   document.getElementById('sum-a').textContent=pct(avg(sumA));
   document.getElementById('sum-p').textContent=pct(avg(sumP));
   document.getElementById('sum-q').textContent=pct(avg(sumQ));
+  // Render andere actieve tabbladen ook
+  if(currentView !== 'oee') renderCurrentView();
 }
 
 // ── Dept switch ───────────────────────────────────────────────────────────
