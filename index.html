@@ -689,6 +689,7 @@ textarea.fi{height:80px;resize:vertical;}
   <div style="display:flex;gap:8px;margin-bottom:14px;border-bottom:2px solid var(--ipb-border);padding-bottom:0;">
     <button id="qtab-meldingen" onclick="switchQTab('meldingen')" style="padding:8px 16px;border:none;background:none;font-size:13px;font-weight:700;color:var(--ipb-navy);border-bottom:3px solid var(--ipb-navy);margin-bottom:-2px;cursor:pointer;">📋 Openstaand <span id="q-open-cnt" style="background:var(--ipb-navy);color:#fff;font-size:10px;padding:1px 6px;border-radius:20px;margin-left:4px;">0</span></button>
     <button id="qtab-archief" onclick="switchQTab('archief')" style="padding:8px 16px;border:none;background:none;font-size:13px;font-weight:700;color:var(--ipb-text-muted);border-bottom:3px solid transparent;margin-bottom:-2px;cursor:pointer;">🗂 Archief</button>
+    <button id="qtab-klachten" onclick="switchQTab('klachten')" style="padding:8px 16px;border:none;background:none;font-size:13px;font-weight:700;color:var(--ipb-text-muted);border-bottom:3px solid transparent;margin-bottom:-2px;cursor:pointer;">⚠️ Klachten <span id="q-complaint-cnt" style="background:#8b1a1a;color:#fff;font-size:10px;padding:1px 6px;border-radius:20px;margin-left:4px;display:none;">0</span></button>
   </div>
 
   <!-- OPENSTAAND -->
@@ -722,9 +723,27 @@ textarea.fi{height:80px;resize:vertical;}
         <div style="font-size:14px;font-weight:700;color:#2a6018;">🐭 Meldingsformulier Knaagdieren</div>
         <div style="font-size:11px;color:var(--ipb-text-muted);margin-top:3px;">F-QC-023 — Melding knaagdierenwaarneming</div>
       </button>
+      <button onclick="closeQualityChoice();openComplaintForm()" style="padding:16px;border-radius:10px;border:2px solid #e24b4a;background:#fef1f1;cursor:pointer;text-align:left;">
+        <div style="font-size:14px;font-weight:700;color:#8b1a1a;">⚠️ Interne / Externe Klacht</div>
+        <div style="font-size:11px;color:var(--ipb-text-muted);margin-top:3px;">Afkeur registreren — PO, operator, hoeveelheid, machine</div>
+      </button>
     </div>
   </div>
 </div>
+
+  <!-- KLACHTEN PANEL -->
+  <div id="qpanel-klachten" style="display:none;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <span style="font-size:13px;color:#5a6a8a;">Geregistreerde interne en externe klachten</span>
+      <select id="cl-filter-type" onchange="renderComplaints()" style="padding:5px 10px;border:1.5px solid #dde3f0;border-radius:6px;font-size:12px;background:#fff;">
+        <option value="all">Alle types</option>
+        <option value="intern">Intern</option>
+        <option value="extern">Extern</option>
+      </select>
+    </div>
+    <div id="complaints-list"><div style="text-align:center;padding:32px;color:#8a9abf;">Nog geen klachten geregistreerd</div></div>
+  </div>
+
 
 <!-- CAPA FORM MODAL -->
 <div class="modal-bg" id="capa-modal" style="display:none;position:fixed;inset:0;background:rgba(15,30,61,.55);z-index:300;align-items:center;justify-content:center;">
@@ -887,7 +906,7 @@ textarea.fi{height:80px;resize:vertical;}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, set, push, remove, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getDatabase, ref, set, push, remove, onValue, update, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 
 function showToast(msg) {
@@ -1121,13 +1140,18 @@ function sessionDurationMs(name, dept) {
     return 2 * 3600000; // weekend → 2u
   }
   if (AUTO_LOGOUT_DEPTS.includes(dept)) return null; // gebruikt shiftEnd, niet vaste duur
-  // Algemeen: 18u tijdens weekdagen vóór 18:00, anders 30 minuten
+  // Algemeen: sessie loopt TOT 18:00 op weekdagen, daarna 30 minuten
   const now = new Date();
   const day = now.getDay(); // 0=zo, 6=za
   const isWeekend = day === 0 || day === 6;
   const isAfterEvening = now.getHours() >= 18;
-  if (!isWeekend && !isAfterEvening) return 18 * 3600000; // weekdag overdag → 18u
-  return 30 * 60000; // weekend of avond → 30 min
+  if (!isWeekend && !isAfterEvening) {
+    // Bereken ms tot 18:00 vandaag
+    const cutoff18 = new Date(now);
+    cutoff18.setHours(18, 0, 0, 0);
+    return cutoff18.getTime() - now.getTime(); // tot 18:00 vandaag
+  }
+  return 30 * 60000; // weekend of na 18:00 → 30 min
 }
 function setSession(name, dept) {
   const shiftEnd = AUTO_LOGOUT_DEPTS.includes(dept) ? nextShiftChange(Date.now()) : null;
@@ -1651,6 +1675,8 @@ window.switchDept=function(d){
   document.querySelectorAll('.afb').forEach(b=>b.classList.toggle('active',b.dataset.filter==='all'));
   rebindLists();rebindArch();rebindLines();
   loadLineIncidents();
+  initComplaintsListener();
+  initGlobalComplaintsListener();
 };
 
 window.saveOpName=function(v){
@@ -2204,7 +2230,7 @@ function sOD(snap){
   '</div>';
 }
 function sLines(title,data,snapDept,lineHistory,snapMs){
-  const deptLines={'P1':['L11','L12','L14','L15','L16','L17','L18','IDE'],'Ploegchef':['L11','L12','L14','L15','L16','L17','L18','IDE'],'P4':['L41','L42'],'Converting':['swissq','cuir','kriby','cauhe','iijima','iberica','bsp','autolas','manlas','krimpfolie']};
+  const deptLines={'P1':['L11','L12','L14','L15','L16','L17','L18','IDE'],'Ploegchef':['L11','L12','L14','L15','L16','L17','L18','IDE'],'P4':['L41','L42'],'Converting':['swissq','cuir','kirby','cauhe','iijima','iberica','bsp','autolas','manlas','krimpfolie']};
   const LINES=deptLines[snapDept]||deptLines['P1'];
   if(!LINES.length) return '';
 
@@ -2288,9 +2314,30 @@ function sLines(title,data,snapDept,lineHistory,snapMs){
       // Mini legend for this line
       const seen={};entries2.forEach(e=>{if(e.status)seen[e.status]=true;});
       if(Object.keys(seen).length){
-        out+='<div style="display:flex;gap:8px;margin-left:44px;flex-wrap:wrap;">';
+        out+='<div style="display:flex;gap:8px;margin-left:98px;flex-wrap:wrap;">';
         Object.keys(seen).forEach(s=>{
           out+='<span style="font-size:10px;color:'+(OP_COLORS[s]||'#8a9abf')+';">●&nbsp;'+(OP_LBLS[s]||s)+'</span>';
+        });
+        out+='</div>';
+      }
+
+      // ── Incidenten voor deze lijn (panne / problemen / vertraagd) ─────────
+      const INC_STATUS = ['panne','problemen','vertraagd'];
+      const incidents = rawEntries.filter(function(e){ return INC_STATUS.includes(e.status); });
+      if(incidents.length){
+        out+='<div style="margin:4px 0 2px 98px;display:flex;flex-direction:column;gap:3px;">';
+        incidents.forEach(function(e){
+          const col2 = OP_COLORS[e.status]||'#8a9abf';
+          const lbl2 = OP_LBLS[e.status]||e.status;
+          const d2   = new Date(e._ms);
+          const tStr = p2(d2.getDate())+'/'+p2(d2.getMonth()+1)+' '+p2(d2.getHours())+':'+p2(d2.getMinutes());
+          const note = e.note ? ' <span style="font-style:italic;color:#5a6a8a;">— '+e.note+'</span>' : '';
+          const op   = e.operator ? ' <span style="color:#8a9abf;">('+e.operator+')</span>' : '';
+          out+='<div style="display:flex;align-items:baseline;gap:6px;font-size:11px;">'
+            +'<span style="background:'+col2+';color:#fff;padding:1px 7px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap;">'+lbl2+'</span>'
+            +'<span style="color:#8a9abf;white-space:nowrap;">'+tStr+'</span>'
+            +op+note
+            +'</div>';
         });
         out+='</div>';
       }
@@ -2408,7 +2455,7 @@ const LINES_PER_DEPT = {
   P1: ['L11','L12','L14','L15','L16','L17','L18','IDE'],
   Ploegchef: ['L11','L12','L14','L15','L16','L17','L18','IDE'], // ploegchefs zien P1-lijnen
   P4: ['L41','L42'],
-  Converting: ['swissq','cuir','kriby','cauhe','iijima','iberica','bsp','autolas','manlas','krimpfolie']
+  Converting: ['swissq','cuir','kirby','cauhe','iijima','iberica','bsp','autolas','manlas','krimpfolie']
 };
 
 // Operator status data - bewaard voor latere tijdslijn integratie
@@ -2782,15 +2829,49 @@ const LI_STATUS_COLORS = {
 
 function loadLineIncidents() {
   if (lineIncidentsUnsub) lineIncidentsUnsub();
-  lineIncidentsUnsub = onValue(ref(db, 'line-incidents/' + dept), function(snap) {
-    lineIncidentsData = snap.val() || {};
-    // Tally total
-    var total = 0;
-    Object.values(lineIncidentsData).forEach(function(lineEntries) {
-      total += Object.keys(lineEntries || {}).length;
-    });
-    document.getElementById('cnt-li').textContent = total;
-    renderLineIncidents();
+  // Laad incidenten uit operator-history (alle historische data) + line-incidents (nieuw)
+  lineIncidentsData = {};
+  var lines = getLines();
+  var pending = lines.length * 2; // history + incidents per lijn
+  if (pending === 0) { renderLineIncidents(); return; }
+
+  function done() {
+    pending--;
+    if (pending <= 0) {
+      var total = 0;
+      Object.values(lineIncidentsData).forEach(function(e) { total += Object.keys(e||{}).length; });
+      var cnt = document.getElementById('cnt-li');
+      if (cnt) cnt.textContent = total;
+      renderLineIncidents();
+    }
+  }
+
+  lines.forEach(function(line) {
+    // Lees operator-history — filter op panne/problemen/vertraagd
+    onValue(ref(db, 'operator-history/' + dept + '/' + line), function(snap) {
+      var all = snap.val() || {};
+      if (!lineIncidentsData[line]) lineIncidentsData[line] = {};
+      Object.entries(all).forEach(function([k, e]) {
+        if (['panne','problemen','vertraagd'].includes(e.status)) {
+          // Gebruik history-key + 'h' prefix om conflicten te vermijden
+          lineIncidentsData[line]['h_'+k] = Object.assign({}, e, {
+            _src: 'history',
+            archivedAt: e.archivedAt || ''
+          });
+        }
+      });
+      done();
+    }, { onlyOnce: true });
+
+    // Lees ook line-incidents (nieuwe entries met extra velden zoals timeEnd)
+    onValue(ref(db, 'line-incidents/' + dept + '/' + line), function(snap) {
+      var all = snap.val() || {};
+      if (!lineIncidentsData[line]) lineIncidentsData[line] = {};
+      Object.entries(all).forEach(function([k, e]) {
+        lineIncidentsData[line][k] = Object.assign({}, e, { _src: 'incident' });
+      });
+      done();
+    }, { onlyOnce: true });
   });
 }
 
@@ -2847,14 +2928,17 @@ window.renderLineIncidents = function() {
       row.style.cssText = 'display:flex;align-items:flex-start;gap:10px;padding:7px 0;border-bottom:1px solid #f0f2f7;';
 
       var badge = document.createElement('div');
-      badge.style.cssText = 'background:'+col+';color:#fff;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;flex-shrink:0;min-width:70px;text-align:center;';
-      badge.textContent = (e.date||'')+(e.timeVal?' '+e.timeVal:'');
+      badge.style.cssText = 'background:'+col+';color:#fff;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;flex-shrink:0;text-align:center;';
+      var timeStr = e.time || ((e.timeVal||'')+(e.timeEnd && e.timeEnd!==e.timeVal?' → '+e.timeEnd:''));
+      badge.innerHTML = '<div>'+(e.date||'')+'</div><div>'+(timeStr||'')+'</div>';
 
       var info = document.createElement('div');
       info.style.cssText = 'flex:1;';
       var extra = e.snelheid ? ' · '+e.snelheid+(dept==='Converting'?' st/h':' kg/h') : '';
+      var noteHtml = e.note ? '<div style="font-size:11px;color:#1a2e5a;margin-top:2px;font-style:italic;">📝 '+e.note+'</div>' : '';
       info.innerHTML = '<div style="font-size:13px;font-weight:700;color:'+col+';">'+lbl2+'</div>'
-        + '<div style="font-size:11px;color:#5a6a8a;">'+(e.operator||'—')+(e.note?' · '+e.note:'')+extra+'</div>';
+        + '<div style="font-size:11px;color:#5a6a8a;">'+(e.operator||'—')+extra+'</div>'
+        + noteHtml;
 
       var delBtn = document.createElement('button');
       delBtn.style.cssText = 'padding:2px 7px;border:1px solid #e24b4a;background:#fef1f1;color:#8b1a1a;cursor:pointer;font-size:11px;border-radius:5px;flex-shrink:0;';
@@ -2863,7 +2947,13 @@ window.renderLineIncidents = function() {
       delBtn.onclick = function() {
         if (!requireLogin()) return;
         if (window.confirm('Incident verwijderen?')) {
-          remove(ref(db, 'line-incidents/'+dept+'/'+line+'/'+e._key));
+          var path = e._src === 'history'
+            ? 'operator-history/'+dept+'/'+line+'/'+e._key.replace(/^h_/,'')
+            : 'line-incidents/'+dept+'/'+line+'/'+e._key;
+          remove(ref(db, path));
+          // Lokaal verwijderen voor directe feedback
+          delete lineIncidentsData[line][e._key];
+          renderLineIncidents();
         }
       };
 
@@ -2906,8 +2996,325 @@ window.exportLineIncidentsExcel = function() {
   showToast('Excel geëxporteerd ✓');
 };
 
+// ===== KLACHT / AFKEUR FORMULIER =====
+window.openComplaintForm = function() {
+  // Set today's date
+  const today = new Date();
+  const p2 = n => String(n).padStart(2,'0');
+  document.getElementById('cl-datum').value =
+    today.getFullYear()+'-'+p2(today.getMonth()+1)+'-'+p2(today.getDate());
+
+  // Reset alle dept-vinkjes en vink huidige afdeling aan als standaard
+  document.querySelectorAll('.cl-dept-cb').forEach(function(cb){ cb.checked = false; });
+  const deptMap = {'Ploegchef':'P1'}; // Ploegchefs behoren tot P1
+  const myDept = deptMap[dept] || dept;
+  const defCb = document.querySelector('.cl-dept-cb[value="'+myDept+'"]');
+  if(defCb) defCb.checked = true;
+  updateComplaintMachines();
+
+  // Fill operator checkboxes from PERSONNEL (all depts except Ploegchef)
+  const opsDiv = document.getElementById('cl-operators');
+  opsDiv.innerHTML = '';
+  const allDepts = ['P1','P4','Converting','Algemeen'];
+  const seen = new Set();
+  allDepts.forEach(function(d) {
+    (PERSONNEL[d]||[]).forEach(function(p) {
+      if(seen.has(p.name)) return;
+      seen.add(p.name);
+      const label = document.createElement('label');
+      label.style.cssText = 'display:flex;align-items:center;gap:7px;cursor:pointer;padding:4px 6px;border-radius:6px;font-size:12px;';
+      label.innerHTML = '<input type="checkbox" value="'+p.name+'" onchange="updateComplaintSplit()" style="width:14px;height:14px;"> '+p.name;
+      opsDiv.appendChild(label);
+    });
+  });
+
+  // Reset alle velden
+  document.getElementById('cl-split-wrap').style.display='none';
+  document.getElementById('cl-qty').value='';
+  document.getElementById('cl-po').value='';
+  document.getElementById('cl-desc').value='';
+  document.getElementById('cl-machine').value='';
+  document.querySelectorAll('#cl-operators input[type=checkbox]').forEach(function(cb){cb.checked=false;});
+  document.getElementById('complaint-modal').style.display='flex';
+};
+
+window.updateComplaintMachines = function() {
+  const CONVERTING_LABELS = {
+    swissq:'SwissQ',cuir:'Cuir',kirby:'Kirby',cauhe:'Cauhe',iijima:'Iijima',
+    iberica:'Iberica',bsp:'BSP',autolas:'AutoLas',manlas:'ManLas',krimpfolie:'Krimpfolie'
+  };
+  const sel = document.getElementById('cl-machine');
+  const prevVal = sel ? sel.value : '';
+  if(!sel) return;
+
+  // Verzamel lijnen van alle aangevinkte afdelingen
+  const checkedDepts = Array.from(document.querySelectorAll('.cl-dept-cb:checked')).map(function(cb){return cb.value;});
+  const allLines = [];
+  const seen = new Set();
+  checkedDepts.forEach(function(d) {
+    (LINES_PER_DEPT[d]||[]).forEach(function(l) {
+      if(!seen.has(l)) { seen.add(l); allLines.push({line:l, dept:d}); }
+    });
+  });
+
+  sel.innerHTML = '<option value="">— Kies machine —</option>';
+  allLines.forEach(function(item) {
+    const opt = document.createElement('option');
+    opt.value = item.line;
+    opt.textContent = CONVERTING_LABELS[item.line] || item.line;
+    sel.appendChild(opt);
+  });
+  // Herstel vorige selectie indien nog beschikbaar
+  if(prevVal) sel.value = prevVal;
+};
+
+window.closeComplaintForm = function() {
+  document.getElementById('complaint-modal').style.display='none';
+};
+
+window.updateComplaintSplit = function() {
+  const qty = parseFloat(document.getElementById('cl-qty').value)||0;
+  const unit = document.getElementById('cl-unit').value;
+  const checked = Array.from(document.querySelectorAll('#cl-operators input[type=checkbox]:checked'));
+  const wrap = document.getElementById('cl-split-wrap');
+  const rows = document.getElementById('cl-split-rows');
+
+  if(!checked.length || qty <= 0) { wrap.style.display='none'; return; }
+  wrap.style.display='block';
+
+  const each = Math.round(qty/checked.length * 100)/100;
+  rows.innerHTML='';
+  checked.forEach(function(cb, i) {
+    const isLast = i === checked.length-1;
+    const portion = isLast ? Math.round((qty - each*(checked.length-1))*100)/100 : each;
+    const row = document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid #e8ecf4;font-size:13px;';
+    row.innerHTML='<span style="flex:1;font-weight:600;">'+cb.value+'</span>'
+      +'<input type="number" id="split-'+i+'" value="'+portion+'" min="0" step="0.01" style="width:90px;padding:4px 8px;border:1.5px solid #dde3f0;border-radius:6px;font-size:13px;">'
+      +'<span style="color:#5a6a8a;font-size:12px;min-width:30px;">'+unit+'</span>';
+    rows.appendChild(row);
+  });
+};
+
+
+// ===== KLACHT NOTIFICATIES (BALLONNEN) =====
+var COMPLAINT_GLOBAL_PATH = 'quality-complaints-global';
+var globalComplaintsUnsub = null;
+
+function initGlobalComplaintsListener() {
+  if(globalComplaintsUnsub) globalComplaintsUnsub();
+  globalComplaintsUnsub = onValue(ref(db, 'quality-complaints-global'), function(snap) {
+    const now = Date.now();
+    const all = snap.val() || {};
+    // Filter: zichtbaar binnen 24h OF op de eerste weekenddag (zaterdag)
+    // zodat ook weekendploegen op de hoogte zijn van recente klachten
+    const nowDay = new Date(now).getDay(); // 0=zo, 6=za
+    const relevant = Object.entries(all).filter(function([k,v]) {
+      if(!v.registeredAt) return false;
+      const createdMs = new Date(v.registeredAt).getTime();
+      const age = now - createdMs;
+
+      // Normale 24u venster
+      var visible = age <= 24*3600000;
+
+      // Extra: toon ook op zaterdag als klacht aangemaakt is in de afgelopen 7 dagen
+      // Zo zien weekendploegchefs alle recente klachten van de week
+      if(!visible && nowDay === 6) {
+        // Bereken start van deze zaterdag (00:00)
+        const today = new Date(now);
+        const satStart = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0).getTime();
+        // Toon als klacht aangemaakt is vóór deze zaterdag maar max 7 dagen geleden
+        if(createdMs >= satStart - 7*24*3600000 && createdMs < satStart + 24*3600000) {
+          visible = true;
+        }
+      }
+
+      // Toon alle klachten binnen 24h — geen dept-filter, info staat in de ballon zelf
+      return visible;
+    });
+    renderKlachtBallonnen(relevant);
+  });
+}
+
+function renderKlachtBallonnen(entries) {
+  const wrap = document.getElementById('klacht-balloon-wrap');
+  if(!wrap) return;
+  wrap.innerHTML = '';
+  const dismissed = JSON.parse(localStorage.getItem('ipb_dismissed_complaints')||'{}');
+  const minimized = JSON.parse(localStorage.getItem('ipb_minimized_complaints')||'{}');
+
+  entries.forEach(function([key, v]) {
+    if(dismissed[key]) return; // volledig weggedaan
+
+    const isMin = !!minimized[key];
+    const typeCol = v.type==='extern' ? '#1E3A6E' : '#8b1a1a';
+    const typeLbl = v.type==='extern' ? 'EXTERN' : 'INTERN';
+    const deptsLbl = (v.targetDepts||[]).join(' · ');
+    const d = new Date(v.registeredAt);
+    const p2 = n=>String(n).padStart(2,'0');
+    const timeStr = p2(d.getDate())+'/'+p2(d.getMonth()+1)+' '+p2(d.getHours())+':'+p2(d.getMinutes());
+
+    const balloon = document.createElement('div');
+    balloon.style.cssText = 'pointer-events:all;transition:all .3s;';
+
+    if(isMin) {
+      // Geminimaliseerde pill - DOM aanmaken om quoteproblemen te vermijden
+      const pill = document.createElement('div');
+      pill.style.cssText = 'background:#C62828;color:#fff;padding:7px 14px;border-radius:20px;cursor:pointer;font-size:12px;font-weight:800;box-shadow:0 4px 16px rgba(0,0,0,.25);display:flex;align-items:center;gap:6px;';
+      pill.innerHTML = '⚠️ Klacht <span style="background:rgba(255,255,255,.25);padding:1px 7px;border-radius:20px;">'+typeLbl+'</span>';
+      (function(k){ pill.onclick = function(){ window.expandKlacht(k); }; })(key);
+      balloon.appendChild(pill);
+    } else {
+      // Volledig zichtbaar — enkel minimaliseerbaar, geen sluiten
+      const card = document.createElement('div');
+      card.style.cssText='background:#fff;border:2px solid #C62828;border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.2);width:340px;overflow:hidden;';
+
+      // Header
+      const hdr = document.createElement('div');
+      hdr.style.cssText='background:#C62828;padding:10px 14px;display:flex;align-items:center;gap:8px;';
+      hdr.innerHTML='<span style="font-size:13px;font-weight:900;color:#fff;flex:1;">⚠️ KLACHT</span>'
+        +'<span style="background:rgba(255,255,255,.2);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;">'+typeLbl+'</span>'
+        +(deptsLbl?'<span style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.85);font-size:10px;padding:2px 8px;border-radius:20px;">'+deptsLbl+'</span>':'')
+        +'<button class="kb-min" style="background:rgba(255,255,255,.15);border:none;color:#fff;width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:14px;font-weight:700;line-height:1;" title="Minimaliseren">−</button>';
+      card.appendChild(hdr);
+
+      // Body
+      const body = document.createElement('div');
+      body.style.cssText='padding:12px 14px;';
+
+      // Meta row
+      const meta = document.createElement('div');
+      meta.style.cssText='font-size:11px;color:#5a6a8a;margin-bottom:8px;display:flex;flex-wrap:wrap;gap:6px;';
+      if(v.po) meta.innerHTML+='<span style="background:#f4f6fb;padding:2px 8px;border-radius:20px;font-weight:700;">PO: '+v.po+'</span>';
+      meta.innerHTML+='<span style="background:#f4f6fb;padding:2px 8px;border-radius:20px;">📅 '+timeStr+'</span>';
+      if(v.machine) meta.innerHTML+='<span style="background:#f4f6fb;padding:2px 8px;border-radius:20px;">⚙ '+v.machine+'</span>';
+      body.appendChild(meta);
+
+      // Beschrijving
+      const desc = document.createElement('div');
+      desc.style.cssText='font-size:13px;font-weight:700;color:#1a2e5a;margin-bottom:8px;line-height:1.4;';
+      desc.textContent=v.description||'';
+      body.appendChild(desc);
+
+      // Hoeveelheid
+      const qty = document.createElement('div');
+      qty.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:8px;';
+      qty.innerHTML='<span style="background:#C6282820;color:#C62828;font-size:12px;font-weight:800;padding:3px 10px;border-radius:20px;">'+(v.qty||0)+' '+(v.unit||'')+'</span>'
+        +'<span style="font-size:11px;color:#8a9abf;">door '+(v.registeredBy||'—')+'</span>';
+      body.appendChild(qty);
+
+      // Operatoren verdeling
+      if(v.operators&&v.operators.length){
+        const ops = document.createElement('div');
+        ops.style.cssText='display:flex;flex-direction:column;gap:4px;border-top:1px solid #f0f2f7;padding-top:8px;margin-top:4px;';
+        v.operators.forEach(function(op){
+          const row=document.createElement('div');
+          row.style.cssText='display:flex;justify-content:space-between;font-size:11px;';
+          row.innerHTML='<span style="color:#1a2e5a;font-weight:600;">'+op.name+'</span><span style="color:#5a6a8a;">'+op.qty+' '+(op.unit||v.unit||'')+'</span>';
+          ops.appendChild(row);
+        });
+        body.appendChild(ops);
+      }
+      card.appendChild(body);
+      balloon.appendChild(card);
+      // Koppel minimeer-knop via DOM na opbouw
+      const minBtn = card.querySelector('.kb-min');
+      if(minBtn) (function(k){ minBtn.onclick = function(e){ e.stopPropagation(); window.minimizeKlacht(k); }; })(key);
+    } // end else
+
+    wrap.appendChild(balloon);
+  });
+}
+
+window.minimizeKlacht = function(key) {
+  const m = JSON.parse(localStorage.getItem('ipb_minimized_complaints')||'{}');
+  m[key] = true;
+  localStorage.setItem('ipb_minimized_complaints', JSON.stringify(m));
+  // Re-render via Firebase snap (instant via local state)
+  const wrap = document.getElementById('klacht-balloon-wrap');
+  if(wrap) {
+    // Quick re-render without Firebase call
+    const btn = event ? event.target.closest('[style*="width:310px"]') : null;
+    initGlobalComplaintsListener(); // re-triggers render
+  }
+};
+window.expandKlacht = function(key) {
+  const m = JSON.parse(localStorage.getItem('ipb_minimized_complaints')||'{}');
+  delete m[key];
+  localStorage.setItem('ipb_minimized_complaints', JSON.stringify(m));
+  initGlobalComplaintsListener();
+};
+window.dismissKlacht = function(key) {
+  const d2 = JSON.parse(localStorage.getItem('ipb_dismissed_complaints')||'{}');
+  d2[key] = true;
+  localStorage.setItem('ipb_dismissed_complaints', JSON.stringify(d2));
+  initGlobalComplaintsListener();
+};
+
+window.updateComplaintTypeStyle = function() {
+  const isExtern = document.getElementById('ct-extern').checked;
+  document.getElementById('lbl-intern').style.borderColor = isExtern ? '#dde3f0' : '#8b1a1a';
+  document.getElementById('lbl-intern').style.background  = isExtern ? '#fff' : '#fef1f1';
+  document.getElementById('lbl-extern').style.borderColor = isExtern ? '#1E3A6E' : '#dde3f0';
+  document.getElementById('lbl-extern').style.background  = isExtern ? '#edf3fe' : '#fff';
+};
+
+window.saveComplaint = function() {
+  if(!requireLogin()) return;
+  const datum = document.getElementById('cl-datum').value;
+  const po = document.getElementById('cl-po').value.trim();
+  const machine = document.getElementById('cl-machine').value;
+  const desc = document.getElementById('cl-desc').value.trim();
+  const qty = parseFloat(document.getElementById('cl-qty').value)||0;
+  const unit = document.getElementById('cl-unit').value;
+  const type = document.querySelector('input[name=complaint-type]:checked').value;
+  const targetDepts = Array.from(document.querySelectorAll('.cl-dept-cb:checked')).map(function(cb){return cb.value;});
+
+  if(!datum) { alert('Vul een datum in.'); return; }
+  if(!machine) { alert('Kies een machine.'); return; }
+  if(!desc) { alert('Vul een beschrijving in.'); return; }
+  if(!qty) { alert('Vul een hoeveelheid in.'); return; }
+
+  const checked = Array.from(document.querySelectorAll('#cl-operators input[type=checkbox]:checked'));
+  const operators = [];
+  checked.forEach(function(cb, i) {
+    const splitEl = document.getElementById('split-'+i);
+    const portion = splitEl ? parseFloat(splitEl.value)||0 : qty/Math.max(checked.length,1);
+    operators.push({name:cb.value, qty:portion, unit:unit});
+  });
+
+  const d = new Date(datum);
+  const p2 = n=>String(n).padStart(2,'0');
+  const datumStr = p2(d.getDate())+'/'+p2(d.getMonth()+1)+'/'+d.getFullYear();
+
+  const entry = {
+    type: type,
+    targetDepts: targetDepts,
+    datum: datumStr,
+    po: po,
+    machine: machine,
+    description: desc,
+    qty: qty,
+    unit: unit,
+    operators: operators,
+    registeredBy: getCurrentUserName()||'—',
+    registeredAt: new Date().toISOString(),
+    dept: dept
+  };
+
+  // Sla op in EEN enkel globaal pad — archief, ballonnen en verwijdering lopen automatisch synchroon
+  push(ref(db, 'quality-complaints-global'), entry).then(function() {
+    closeComplaintForm();
+    showToast('Klacht opgeslagen ✓');
+  }).catch(function(err) {
+    alert('Fout bij opslaan: '+err.message);
+  });
+};
+
 rebindLines();
 initActiveSessionsListener();
+initComplaintsListener();
+initGlobalComplaintsListener();
 
 // GARANTIE: render tegels na volledig laden op verschillende momenten
 function ensureLines() {
@@ -3986,15 +4393,95 @@ let qualityTab = 'meldingen';
 
 window.switchQTab = function(tab) {
   qualityTab = tab;
-  document.getElementById('qpanel-meldingen').style.display = tab==='meldingen'?'block':'none';
-  document.getElementById('qpanel-archief').style.display = tab==='archief'?'block':'none';
-  const btnM = document.getElementById('qtab-meldingen');
-  const btnA = document.getElementById('qtab-archief');
-  btnM.style.color = tab==='meldingen'?'var(--ipb-navy)':'var(--ipb-text-muted)';
-  btnM.style.borderBottomColor = tab==='meldingen'?'var(--ipb-navy)':'transparent';
-  btnA.style.color = tab==='archief'?'var(--ipb-navy)':'var(--ipb-text-muted)';
-  btnA.style.borderBottomColor = tab==='archief'?'var(--ipb-navy)':'transparent';
-  renderQuality();
+  ['meldingen','archief','klachten'].forEach(function(t) {
+    const panel = document.getElementById('qpanel-'+t);
+    const btn = document.getElementById('qtab-'+t);
+    if(panel) panel.style.display = t===tab?'block':'none';
+    if(btn) {
+      btn.style.color = t===tab?'var(--ipb-navy)':'var(--ipb-text-muted)';
+      btn.style.borderBottomColor = t===tab?'var(--ipb-navy)':'transparent';
+    }
+  });
+  if(tab==='klachten') renderComplaints();
+  else renderQuality();
+};
+
+// ── Klachten Firebase listener & render ────────────────────────────────────
+var complaintsData = {};
+var complaintsUnsub = null;
+
+function initComplaintsListener() {
+  if(complaintsUnsub) complaintsUnsub();
+  // Lees alle klachten uit globaal pad — archief toont alles, niet gefilterd op dept
+  complaintsUnsub = onValue(ref(db, 'quality-complaints-global'), function(snap) {
+    complaintsData = snap.val() || {};
+    const cnt = Object.keys(complaintsData).length;
+    const cntEl = document.getElementById('q-complaint-cnt');
+    if(cntEl) {
+      cntEl.textContent = cnt;
+      cntEl.style.display = cnt > 0 ? 'inline' : 'none';
+    }
+    if(qualityTab === 'klachten') renderComplaints();
+  });
+}
+
+window.renderComplaints = function() {
+  const list = document.getElementById('complaints-list');
+  if(!list) return;
+  const typeFilter = (document.getElementById('cl-filter-type')||{}).value || 'all';
+  let entries = Object.entries(complaintsData).map(function([k,v]){ return Object.assign({_key:k},v); });
+  if(typeFilter !== 'all') entries = entries.filter(function(e){ return e.type===typeFilter; });
+  entries.sort(function(a,b){ return (b.registeredAt||'').localeCompare(a.registeredAt||''); });
+
+  if(!entries.length) {
+    list.innerHTML='<div style="text-align:center;padding:32px;color:#8a9abf;">Geen klachten gevonden</div>';
+    return;
+  }
+
+  list.innerHTML='';
+  entries.forEach(function(e) {
+    const isExtern = e.type==='extern';
+    const col = isExtern ? '#1E3A6E' : '#8b1a1a';
+    const bg  = isExtern ? '#edf3fe' : '#fef1f1';
+    const MACHINE_LABELS = {
+      swissq:'SwissQ',cuir:'Cuir',kirby:'Kirby',cauhe:'Cauhe',iijima:'Iijima',
+      iberica:'Iberica',bsp:'BSP',autolas:'AutoLas',manlas:'ManLas',krimpfolie:'Krimpfolie'
+    };
+    const mach = MACHINE_LABELS[e.machine] || e.machine || '—';
+
+    let opsHtml = '';
+    if(e.operators && e.operators.length) {
+      opsHtml = '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">'
+        + e.operators.map(function(op){
+          return '<span style="background:'+col+'18;color:'+col+';padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">'
+            +op.name+' — '+op.qty+' '+(op.unit||e.unit||'')+'</span>';
+        }).join('') + '</div>';
+    }
+
+    const card = document.createElement('div');
+    card.style.cssText='background:#fff;border:1.5px solid '+col+'40;border-radius:10px;padding:14px 16px;margin-bottom:10px;position:relative;';
+    card.innerHTML=
+      '<div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;">'
+      +'<span style="background:'+col+';color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;">'+(isExtern?'EXTERN':'INTERN')+'</span>'
+      +'<span style="font-size:12px;color:#5a6a8a;">📅 '+(e.datum||'—')+'</span>'
+      +(e.po?'<span style="font-size:12px;color:#5a6a8a;font-weight:700;">PO: '+e.po+'</span>':'')
+      +'<span style="font-size:12px;color:#5a6a8a;">⚙ '+mach+'</span>'
+      +'<span style="font-size:12px;font-weight:700;color:'+col+';">'+(e.qty||0)+' '+(e.unit||'')+'</span>'
+      +'<span style="font-size:11px;color:#8a9abf;margin-left:auto;">door '+(e.registeredBy||'—')+'</span>'
+      +'</div>'
+      +'<div style="font-size:13px;color:#1a2e5a;margin-top:8px;font-weight:600;">'+(e.description||'—')+'</div>'
+      +opsHtml
+      +'<button onclick="deleteComplaint(this)" data-key="'+e._key+'" style="position:absolute;top:8px;right:10px;background:none;border:none;cursor:pointer;font-size:14px;color:#ccc;">🗑</button>';
+    list.appendChild(card);
+  });
+};
+
+window.deleteComplaint = function(btn) {
+  const key = btn.getAttribute ? btn.getAttribute('data-key') : btn;
+  if(!requireLogin()) return;
+  if(!window.confirm('Klacht verwijderen?')) return;
+  // Verwijder uit het globale pad — hierdoor verdwijnt de klacht overal (archief + ballonnen)
+  remove(ref(db, 'quality-complaints-global/'+key));
 };
 
 window.filterQuality = function(btn) {
@@ -4455,5 +4942,113 @@ document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') { closeModal(); closeLightbox(); closePhotoModal(); }
 });
 </script>
+
+<!-- KLACHT / AFKEUR FORMULIER -->
+<div id="complaint-modal" style="display:none;position:fixed;inset:0;background:rgba(15,30,61,.55);z-index:400;align-items:center;justify-content:center;overflow-y:auto;">
+  <div style="background:#fff;border-radius:16px;width:min(640px,96vw);margin:20px auto;box-shadow:0 8px 40px rgba(0,0,0,.25);">
+    <div style="background:#8b1a1a;color:#fff;padding:16px 22px;border-radius:16px 16px 0 0;display:flex;align-items:center;justify-content:space-between;">
+      <span style="font-size:16px;font-weight:800;">⚠️ Interne / Externe Klacht registreren</span>
+      <button onclick="closeComplaintForm()" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;line-height:1;">×</button>
+    </div>
+    <div style="padding:22px;display:flex;flex-direction:column;gap:14px;">
+
+      <!-- Type + Afdeling -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#5a6a8a;text-transform:uppercase;letter-spacing:.05em;">Type klacht</label>
+          <div style="display:flex;gap:10px;margin-top:8px;">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:8px 14px;border-radius:8px;border:2px solid #dde3f0;flex:1;justify-content:center;" id="lbl-intern">
+              <input type="radio" name="complaint-type" id="ct-intern" value="intern" checked onchange="updateComplaintTypeStyle()">
+              <span style="font-size:13px;font-weight:700;color:#8b1a1a;">Intern</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:8px 14px;border-radius:8px;border:2px solid #dde3f0;flex:1;justify-content:center;" id="lbl-extern">
+              <input type="radio" name="complaint-type" id="ct-extern" value="extern" onchange="updateComplaintTypeStyle()">
+              <span style="font-size:13px;font-weight:700;color:#1E3A6E;">Extern</span>
+            </label>
+          </div>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#5a6a8a;text-transform:uppercase;letter-spacing:.05em;">Betrokken afdeling(en)</label>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:6px 12px;border-radius:8px;border:2px solid #dde3f0;font-size:12px;font-weight:700;">
+              <input type="checkbox" class="cl-dept-cb" value="P1" onchange="updateComplaintMachines()"> P1
+            </label>
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:6px 12px;border-radius:8px;border:2px solid #dde3f0;font-size:12px;font-weight:700;">
+              <input type="checkbox" class="cl-dept-cb" value="P4" onchange="updateComplaintMachines()"> P4
+            </label>
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:6px 12px;border-radius:8px;border:2px solid #dde3f0;font-size:12px;font-weight:700;">
+              <input type="checkbox" class="cl-dept-cb" value="Converting" onchange="updateComplaintMachines()"> Conv.
+            </label>
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:6px 12px;border-radius:8px;border:2px solid #dde3f0;font-size:12px;font-weight:700;">
+              <input type="checkbox" class="cl-dept-cb" value="Magazijn" onchange="updateComplaintMachines()"> Magazijn
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row: Datum + PO -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#5a6a8a;text-transform:uppercase;letter-spacing:.05em;">Datum</label>
+          <input type="date" id="cl-datum" style="width:100%;margin-top:5px;padding:9px 12px;border:1.5px solid #dde3f0;border-radius:8px;font-size:13px;">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#5a6a8a;text-transform:uppercase;letter-spacing:.05em;">PO Nummer</label>
+          <input type="text" id="cl-po" placeholder="bv. PO-2026-0423" style="width:100%;margin-top:5px;padding:9px 12px;border:1.5px solid #dde3f0;border-radius:8px;font-size:13px;">
+        </div>
+      </div>
+
+      <!-- Machine -->
+      <div>
+        <label style="font-size:11px;font-weight:700;color:#5a6a8a;text-transform:uppercase;letter-spacing:.05em;">Machine / Lijn</label>
+        <select id="cl-machine" style="width:100%;margin-top:5px;padding:9px 12px;border:1.5px solid #dde3f0;border-radius:8px;font-size:13px;background:#fff;">
+          <option value="">— Kies machine —</option>
+        </select>
+      </div>
+
+      <!-- Beschrijving -->
+      <div>
+        <label style="font-size:11px;font-weight:700;color:#5a6a8a;text-transform:uppercase;letter-spacing:.05em;">Beschrijving klacht</label>
+        <textarea id="cl-desc" rows="3" placeholder="Omschrijf het probleem..." style="width:100%;margin-top:5px;padding:9px 12px;border:1.5px solid #dde3f0;border-radius:8px;font-size:13px;resize:vertical;font-family:inherit;"></textarea>
+      </div>
+
+      <!-- Hoeveelheid + eenheid -->
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;">
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#5a6a8a;text-transform:uppercase;letter-spacing:.05em;">Totale hoeveelheid</label>
+          <input type="number" id="cl-qty" min="0" step="0.1" placeholder="0" style="width:100%;margin-top:5px;padding:9px 12px;border:1.5px solid #dde3f0;border-radius:8px;font-size:13px;" oninput="updateComplaintSplit()">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#5a6a8a;text-transform:uppercase;letter-spacing:.05em;">Eenheid</label>
+          <select id="cl-unit" style="width:100%;margin-top:5px;padding:9px 12px;border:1.5px solid #dde3f0;border-radius:8px;font-size:13px;background:#fff;">
+            <option value="kg">kg</option>
+            <option value="st">stuks</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Operatoren multi-select -->
+      <div>
+        <label style="font-size:11px;font-weight:700;color:#5a6a8a;text-transform:uppercase;letter-spacing:.05em;">Betrokken operator(en) <span style="font-weight:400;color:#8a9abf;font-style:italic;">— meerdere mogelijk</span></label>
+        <div id="cl-operators" style="margin-top:8px;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px;max-height:200px;overflow-y:auto;border:1.5px solid #dde3f0;border-radius:8px;padding:10px;"></div>
+      </div>
+
+      <!-- Verdeling preview -->
+      <div id="cl-split-wrap" style="display:none;background:#f4f6fb;border-radius:8px;padding:12px;">
+        <div style="font-size:11px;font-weight:700;color:#5a6a8a;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Verdeling hoeveelheid</div>
+        <div id="cl-split-rows"></div>
+      </div>
+
+      <!-- Submit -->
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px;">
+        <button onclick="closeComplaintForm()" style="padding:10px 20px;border:1.5px solid #dde3f0;border-radius:8px;background:#fff;font-size:13px;cursor:pointer;font-weight:700;color:#5a6a8a;">Annuleren</button>
+        <button onclick="saveComplaint()" style="padding:10px 24px;background:#8b1a1a;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;">Klacht opslaan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- KLACHT NOTIFICATIE BALLON -->
+<div id="klacht-balloon-wrap" style="position:fixed;bottom:20px;right:20px;z-index:8500;display:flex;flex-direction:column;gap:8px;align-items:flex-end;pointer-events:none;"></div>
 </body>
 </html>
