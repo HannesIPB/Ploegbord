@@ -1902,6 +1902,29 @@ function rPerson(key,item){
   addPhotoToRow(row,'people',key,item.photo);addReplySection(row,'people',key,item.replies,false);return row;
 }
 const DC={planning:{cls:'n-planning',chip:'cp',label:'Planning'},quality:{cls:'n-quality',chip:'cq',label:'Kwaliteit'},warehouse:{cls:'',chip:'cw',label:'Magazijn'},depthead:{cls:'n-depthead',chip:'cdh',label:'Afdelingshoofd'},plantmanager:{cls:'n-plantmgr',chip:'cpm',label:'Plant Manager'},general:{cls:'',chip:'cg',label:'Overige'}};
+// Renderer voor tijdslijn operator-meldingen (met afdeling-badge)
+function rDeptTL(fromDept, key, item) {
+  const DEPT_COLORS = {P1:'#1E3A6E', P4:'#6DB33F', Converting:'#E67E00'};
+  const col = DEPT_COLORS[fromDept] || '#5a6a8a';
+  const el = document.createElement('div');
+  el.className = 'note'; el.id = 'tl-i-'+fromDept+'-'+key;
+  el.style.cssText = 'border-left:4px solid '+col+';';
+  const author = item.by || 'Operator';
+  const dateDisplay = item.date ? item.date+' '+item.time : (item.time||'');
+  el.innerHTML = '<div class="nm">'
+    + '<span class="chip" style="background:'+col+';color:#fff;font-size:10px;padding:2px 8px;border-radius:20px;">'+fromDept+'</span>'
+    + '<span style="font-size:11px;font-weight:700;color:#1E3A6E;">'+author+'</span>'
+    + '<span style="font-size:10px;color:#8a9abf;margin-left:auto;">'+dateDisplay+'</span>'
+    + '</div>'
+    + '<div class="nt">'+(item.text||'')+'</div>';
+  // Delete button
+  const delPath = fromDept+'/dept/'+key;
+  el.appendChild(db2(delPath));
+  // Reply section
+  addReplySection(el, fromDept+'/dept', key, item.replies, true); // isGlobal=true: pad = collection/key/replies zonder dept prefix
+  return el;
+}
+
 function rDept(key,item){
   const c=DC[item.dept]||DC.general;
   const el=document.createElement('div');el.className='note '+c.cls;el.id='i-'+key;
@@ -2051,7 +2074,36 @@ function rebindLists(){
   unsubs.push(bindOne('safety','list-safety','cnt-safety',rSafety));
   unsubs.push(bindOne('machines','list-machine','cnt-machine',rMachine));
   unsubs.push(bindOne('people','list-people','cnt-people',rPerson));
-  unsubs.push(bindOne('dept','list-dept','cnt-dept',rDept));
+  // Luister naar meldingen van ALLE afdelingen (P1, P4, Converting)
+  // zodat ploegchef altijd alle operator-meldingen ziet ongeacht actief dept
+  var tlDepts = ['P1','P4','Converting'];
+  var tlMelData = {};
+  function renderTlMeldingen() {
+    var list = document.getElementById('list-dept');
+    if(!list) return;
+    list.innerHTML = '';
+    var all = [];
+    Object.entries(tlMelData).forEach(function(de) {
+      var d = de[0];
+      Object.entries(de[1]||{}).forEach(function(ke) {
+        all.push({_dept:d, _key:ke[0], _v:ke[1]});
+      });
+    });
+    all.sort(function(a,b){return (b._v.ts||b._v.time||'').localeCompare(a._v.ts||a._v.time||'');});
+    document.getElementById('cnt-dept').textContent = all.length;
+    if(!all.length){ list.innerHTML='<div style="padding:10px;color:#b0bcd8;font-size:12px;">Geen meldingen</div>'; return; }
+    all.forEach(function(item) {
+      var el = rDeptTL(item._dept, item._key, item._v);
+      if(el) list.appendChild(el);
+    });
+  }
+  tlDepts.forEach(function(d) {
+    tlMelData[d] = {};
+    unsubs.push(onValue(ref(db, d+'/dept'), function(snap) {
+      tlMelData[d] = snap.val() || {};
+      renderTlMeldingen();
+    }));
+  });
   unsubs.push(bindOne('general','list-gen','cnt-gen',rGen));
   unsubs.push(bindOne('td','list-td','cnt-td',rTD));
   unsubs.push(onValue(ref(db,dp('escalations')),snap=>{
