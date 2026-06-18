@@ -3789,7 +3789,19 @@ function renderP4Panel(line, panel, cardDiv) {
   noteInp.placeholder='Opmerking (optioneel)';
   noteInp.style.cssText='width:100%;padding:6px 8px;border:1.5px solid #b0bcd8;border-radius:6px;font-size:12px;box-sizing:border-box;margin-bottom:8px;display:none;';
   noteInp.onclick=function(e){e.stopPropagation();};
+  // Auto-verberg foutbanner zodra er iets ingetypt wordt
+  noteInp.addEventListener('input', function(){
+    const eb = document.getElementById('p4-err-'+line);
+    if(eb && noteInp.value.trim()) { eb.style.display='none'; noteInp.style.border='1.5px solid #b0bcd8'; }
+  });
   panel.appendChild(noteInp);
+
+  // Foutbanner (verborgen tenzij validatie faalt)
+  const errBanner = document.createElement('div');
+  errBanner.id = 'p4-err-'+line;
+  errBanner.style.cssText = 'display:none;background:#C62828;color:#fff;border-radius:7px;padding:9px 12px;font-size:12px;font-weight:700;margin-bottom:8px;line-height:1.4;';
+  errBanner.onclick = function(e){e.stopPropagation();};
+  panel.appendChild(errBanner);
 
   // Save + Timeline buttons
   const saveBtn = document.createElement('button');
@@ -3912,6 +3924,20 @@ function saveP4Status(line, panel) {
   let selStatus = panel._selStatus;
   let snelheidCheck = document.getElementById('p4-snelheid-'+line);
   if (!selStatus && !(snelheidCheck&&snelheidCheck.value.trim())) return;
+
+  // Verplichte reden bij panne of problemen
+  let noteCheck = (document.getElementById('p4-note-'+line)||{}).value||'';
+  noteCheck = noteCheck.trim();
+  if ((selStatus==='panne'||selStatus==='problemen') && !noteCheck) {
+    const errBn = document.getElementById('p4-err-'+line);
+    const noteEl = document.getElementById('p4-note-'+line);
+    const msg = selStatus==='panne'
+      ? '🔴 Reden verplicht — Vul de oorzaak van de panne/stilstand in.'
+      : '🟠 Reden verplicht — Vul de oorzaak van het probleem in.';
+    if(errBn){ errBn.textContent=msg; errBn.style.display='block'; }
+    if(noteEl){ noteEl.style.display='block'; noteEl.focus(); noteEl.style.border='2px solid #C62828'; }
+    return; // panel blijft open
+  }
   let p2 = n => String(n).padStart(2,'0');
   let now = new Date();
   let today = now.getFullYear()+'-'+p2(now.getMonth()+1)+'-'+p2(now.getDate());
