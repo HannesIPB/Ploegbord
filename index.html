@@ -1079,6 +1079,44 @@ function removeActiveSession() {
 // Verwijder sessie automatisch als venster gesloten wordt
 window.addEventListener('beforeunload', function() { removeActiveSession(); });
 
+// ── Gedeelde sessieverloop-check (gebruikt door getSession EN actieve-sessies-lijst) ──
+function isSessionExpired(s) {
+  const now2 = Date.now();
+  const now2d = new Date(now2);
+  const day2 = now2d.getDay();
+  const h2   = now2d.getHours();
+  const isWE = (day2 === 0 || day2 === 6);
+
+  // Operatoren/ploegchefs: verlopen bij ploegwissel (shiftEnd)
+  if (s.shiftEnd) return now2 >= s.shiftEnd;
+
+  // Hannes Bruyneel: weekdag tot 19:00, anders 2u
+  if (s.name === 'Hannes Bruyneel') {
+    if (!isWE && h2 < 19) {
+      const c19 = new Date(now2); c19.setHours(19,0,0,0);
+      return now2 >= c19.getTime();
+    }
+    return (now2 - s.loginAt) > 2 * 3600000;
+  }
+
+  // Overige Algemeen:
+  // Ingelogd vandaag tijdens werktijd (08-18) op weekdag → geldig tot 18:00
+  // Alle andere gevallen → 30 minuten
+  const loginDate = new Date(s.loginAt || s.ts || 0);
+  const todayDate = new Date(now2);
+  const sameDay = (loginDate.getFullYear() === todayDate.getFullYear() &&
+                   loginDate.getMonth()    === todayDate.getMonth()    &&
+                   loginDate.getDate()     === todayDate.getDate());
+  const loginH = loginDate.getHours();
+  const loginInWork = (loginH >= 8 && loginH < 18);
+
+  if (!isWE && h2 >= 8 && h2 < 18 && sameDay && loginInWork) {
+    const c18 = new Date(now2); c18.setHours(18,0,0,0);
+    return now2 >= c18.getTime();
+  }
+  return (now2 - (s.loginAt || s.ts || 0)) > 30 * 60000;
+}
+
 const SESSION_KEY = 'ipb_session_v2';
 // Afdelingen die automatisch uitloggen bij ploegwissel
 const AUTO_LOGOUT_DEPTS = ['P1','Ploegchef','P4','Converting'];
@@ -1117,9 +1155,9 @@ function getSession() {
     if (AUTO_LOGOUT_DEPTS.includes(s.dept)) {
       if (!s.shiftEnd || Date.now() >= s.shiftEnd) return null;
     } else {
-      // Algemeen / Hannes: sessieduur op basis van naam + tijdstip van aanmelden
-      var dur = sessionDurationMs(s.name, s.dept);
-      if (dur && (Date.now() - s.ts) > dur) return null;
+      // Gebruik gedeelde isSessionExpired check
+      const sForCheck = {name:s.name, loginAt:s.ts, shiftEnd:s.shiftEnd||null};
+      if (isSessionExpired(sForCheck)) return null;
     }
     return s;
   } catch(e) { return null; }
@@ -1988,7 +2026,7 @@ function initActiveSessionsListener() {
     const active = Object.entries(val).filter(function([k, s]) {
       if (!s.name) return false;
       if (s.shiftEnd && now >= s.shiftEnd) return false;
-      if (!s.shiftEnd && s.loginAt && (now - s.loginAt) > 24*3600000) return false;
+      if (isSessionExpired(s)) return false;
       return true;
     }).sort(function(a, b) { return (a[1].dept||'').localeCompare(b[1].dept||'') || a[1].name.localeCompare(b[1].name); });
 
