@@ -689,7 +689,7 @@ textarea.fi{height:80px;resize:vertical;}
   <div style="display:flex;gap:8px;margin-bottom:14px;border-bottom:2px solid var(--ipb-border);padding-bottom:0;">
     <button id="qtab-meldingen" onclick="switchQTab('meldingen')" style="padding:8px 16px;border:none;background:none;font-size:13px;font-weight:700;color:var(--ipb-navy);border-bottom:3px solid var(--ipb-navy);margin-bottom:-2px;cursor:pointer;">📋 Openstaand <span id="q-open-cnt" style="background:var(--ipb-navy);color:#fff;font-size:10px;padding:1px 6px;border-radius:20px;margin-left:4px;">0</span></button>
     <button id="qtab-archief" onclick="switchQTab('archief')" style="padding:8px 16px;border:none;background:none;font-size:13px;font-weight:700;color:var(--ipb-text-muted);border-bottom:3px solid transparent;margin-bottom:-2px;cursor:pointer;">🗂 Archief</button>
-    <button id="qtab-klachten" onclick="switchQTab('klachten')" style="padding:8px 16px;border:none;background:none;font-size:13px;font-weight:700;color:var(--ipb-text-muted);border-bottom:3px solid transparent;margin-bottom:-2px;cursor:pointer;">⚠️ Klachten <span id="q-complaint-cnt" style="background:#8b1a1a;color:#fff;font-size:10px;padding:1px 6px;border-radius:20px;margin-left:4px;display:none;">0</span></button>
+    
   </div>
 
   <!-- OPENSTAAND -->
@@ -707,6 +707,25 @@ textarea.fi{height:80px;resize:vertical;}
       <button onclick="exportQualityExcel()" style="padding:5px 13px;border-radius:6px;border:1px solid #2a6018;background:#eef7e9;color:#2a6018;cursor:pointer;font-size:12px;font-weight:600;margin-left:8px;">📊 Export naar Excel</button>
     </div>
     <div id="quality-archive-list"><div style="text-align:center;padding:32px;color:var(--ipb-text-light);">Archief laden...</div></div>
+
+    <!-- Klachten & afwijkingen in archief -->
+    <div style="margin-top:20px;border-top:2px solid var(--ipb-border);padding-top:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+        <span style="font-size:13px;font-weight:700;color:#8b1a1a;">⚠️ Geregistreerde klachten &amp; afwijkingen</span>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <select id="cl-filter-type" onchange="renderComplaints()" style="padding:5px 10px;border:1.5px solid #dde3f0;border-radius:6px;font-size:12px;background:#fff;">
+            <option value="all">Alle types</option>
+            <option value="intern">Intern</option>
+            <option value="extern">Extern</option>
+          </select>
+          <button onclick="var m=document.getElementById('rapport-modal');if(!m)return;var t=new Date(),p=function(n){return String(n).padStart(2,'0');},f=new Date(t);f.setDate(f.getDate()-30);document.getElementById('rapport-from').value=f.getFullYear()+'-'+p(f.getMonth()+1)+'-'+p(f.getDate());document.getElementById('rapport-to').value=t.getFullYear()+'-'+p(t.getMonth()+1)+'-'+p(t.getDate());m.style.display='flex';"
+            style="padding:5px 12px;border-radius:6px;background:#1E3A6E;color:#fff;border:none;font-size:12px;font-weight:700;cursor:pointer;">
+            📊 Rapport
+          </button>
+        </div>
+      </div>
+      <div id="complaints-list"><div style="text-align:center;padding:32px;color:#8a9abf;">Laden…</div></div>
+    </div>
   </div>
 </div>
 
@@ -729,19 +748,24 @@ textarea.fi{height:80px;resize:vertical;}
       </button>
     </div>
   </div>
-</div>
+  </div>
 
-  <!-- KLACHTEN PANEL -->
-  <div id="qpanel-klachten" style="display:none;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+  <!-- KLACHTEN PANEL (verplaatst naar archief) -->
+  <div id="qpanel-klachten" style="display:none !important;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
       <span style="font-size:13px;color:#5a6a8a;">Geregistreerde interne en externe klachten</span>
-      <select id="cl-filter-type" onchange="renderComplaints()" style="padding:5px 10px;border:1.5px solid #dde3f0;border-radius:6px;font-size:12px;background:#fff;">
-        <option value="all">Alle types</option>
-        <option value="intern">Intern</option>
-        <option value="extern">Extern</option>
-      </select>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <select id="cl-filter-type" onchange="renderComplaints()" style="padding:5px 10px;border:1.5px solid #dde3f0;border-radius:6px;font-size:12px;background:#fff;">
+          <option value="all">Alle types</option>
+          <option value="intern">Intern</option>
+          <option value="extern">Extern</option>
+        </select>
+        <button onclick="var m=document.getElementById('rapport-modal');if(m){var t=new Date(),p2=function(n){return String(n).padStart(2,'0');},ts=function(d){return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());},f=new Date(t);f.setDate(f.getDate()-30);var ri=document.getElementById('rapport-from'),ro=document.getElementById('rapport-to');if(ri)ri.value=ts(f);if(ro)ro.value=ts(t);m.style.display='flex';}"
+          style="padding:6px 14px;border-radius:6px;background:#1E3A6E;color:#fff;border:none;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;">
+          📊 Rapport genereren
+        </button>
+      </div>
     </div>
-    <div id="complaints-list"><div style="text-align:center;padding:32px;color:#8a9abf;">Nog geen klachten geregistreerd</div></div>
   </div>
 
 
@@ -3126,6 +3150,17 @@ window.openComplaintForm = function() {
   document.getElementById('cl-machine').value='';
   document.querySelectorAll('#cl-operators input[type=checkbox]').forEach(function(cb){cb.checked=false;});
   document.getElementById('complaint-modal').style.display='flex';
+
+  // Toon beheervelden enkel voor Algemeen of Ploegchef
+  const _s = getSession();
+  const _canEdit = _s && (_s.dept === 'Algemeen' || _s.dept === 'Ploegchef');
+  const _rf = document.getElementById('cl-restricted-fields');
+  if(_rf) _rf.style.display = _canEdit ? 'block' : 'none';
+  // Velden readonly als niet bevoegd (extra veiligheid)
+  ['cl-reden','cl-maatregel'].forEach(function(id){
+    const el = document.getElementById(id);
+    if(el) el.readOnly = !_canEdit;
+  });
 };
 
 window.updateComplaintMachines = function() {
@@ -3160,6 +3195,8 @@ window.updateComplaintMachines = function() {
 
 window.closeComplaintForm = function() {
   document.getElementById('complaint-modal').style.display='none';
+  const enWrap=document.getElementById('cl-extra-names');if(enWrap)enWrap.innerHTML='';
+  window.removeComplaintPhoto&&window.removeComplaintPhoto();
 };
 
 window.updateComplaintSplit = function() {
@@ -3196,6 +3233,7 @@ function initGlobalComplaintsListener() {
   globalComplaintsUnsub = onValue(ref(db, 'quality-complaints-global'), function(snap) {
     const now = Date.now();
     const all = snap.val() || {};
+    window._allComplaintsCache = all; // Cache voor rapport
     // Filter: zichtbaar binnen 24h OF op de eerste weekenddag (zaterdag)
     // zodat ook weekendploegen op de hoogte zijn van recente klachten
     const nowDay = new Date(now).getDay(); // 0=zo, 6=za
@@ -3349,10 +3387,363 @@ window.updateComplaintTypeStyle = function() {
   document.getElementById('lbl-extern').style.background  = isExtern ? '#edf3fe' : '#fff';
 };
 
+
+// ── Operator dropdown voor klachtenformulier ─────────────────────────────────
+var _selectedOps = []; // [{name, id}]
+var _opsDropdownOpen = false;
+
+window.openOpsDropdown = function() {
+  _opsDropdownOpen = true;
+  filterOpsDropdown();
+  document.getElementById('cl-ops-list').style.display = 'block';
+};
+
+window.filterOpsDropdown = function() {
+  const list = document.getElementById('cl-ops-list');
+  const q = (document.getElementById('cl-ops-search').value || '').toLowerCase().trim();
+  const checkboxes = document.querySelectorAll('#cl-operators input[type=checkbox]');
+  const allNames = Array.from(checkboxes).map(function(cb){ return cb.value; });
+
+  list.innerHTML = '';
+
+  // Optie: nieuwe persoon toevoegen
+  const addNew = document.createElement('div');
+  addNew.style.cssText = 'padding:9px 12px;cursor:pointer;font-size:12px;font-weight:700;color:#1E3A6E;border-bottom:1px solid #f0f2f7;background:#f8f9ff;display:flex;align-items:center;gap:6px;';
+  addNew.innerHTML = '＋ <span>Nieuwe persoon toevoegen' + (q ? ': <b>' + q + '</b>' : '') + '</span>';
+  addNew.onmousedown = function(e) {
+    e.preventDefault();
+    const name = q || prompt('Naam nieuwe persoon:');
+    if(name && name.trim()) addOpTag(name.trim(), true);
+    document.getElementById('cl-ops-search').value = '';
+    filterOpsDropdown();
+  };
+  list.appendChild(addNew);
+
+  // Filter bestaande namen
+  const filtered = allNames.filter(function(n){ return !q || n.toLowerCase().includes(q); });
+  filtered.forEach(function(name) {
+    const alreadySelected = _selectedOps.some(function(o){ return o.name === name; });
+    const row = document.createElement('div');
+    row.style.cssText = 'padding:8px 12px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px;'
+      + (alreadySelected ? 'color:#8a9abf;' : 'color:#1a2e5a;');
+    row.innerHTML = (alreadySelected ? '✓ ' : '') + name;
+    if(!alreadySelected) {
+      row.onmouseover = function(){ row.style.background='#f0f4ff'; };
+      row.onmouseout  = function(){ row.style.background=''; };
+      row.onmousedown = function(e){
+        e.preventDefault();
+        addOpTag(name, false);
+        document.getElementById('cl-ops-search').value = '';
+        filterOpsDropdown();
+      };
+    }
+    list.appendChild(row);
+  });
+
+  if(!filtered.length && !q) {
+    const empty = document.createElement('div');
+    empty.style.cssText = 'padding:10px 12px;font-size:12px;color:#8a9abf;font-style:italic;';
+    empty.textContent = 'Geen operatoren gevonden.';
+    list.appendChild(empty);
+  }
+};
+
+function addOpTag(name, isNew) {
+  if(_selectedOps.some(function(o){ return o.name === name; })) return;
+  _selectedOps.push({name: name, isNew: isNew});
+  renderOpTags();
+  // Sync met hidden checkboxes voor verdeling
+  const cb = Array.from(document.querySelectorAll('#cl-operators input[type=checkbox]')).find(function(c){ return c.value === name; });
+  if(cb) cb.checked = true;
+  updateQtySplit();
+}
+
+function removeOpTag(name) {
+  _selectedOps = _selectedOps.filter(function(o){ return o.name !== name; });
+  renderOpTags();
+  const cb = Array.from(document.querySelectorAll('#cl-operators input[type=checkbox]')).find(function(c){ return c.value === name; });
+  if(cb) cb.checked = false;
+  updateQtySplit();
+}
+
+function renderOpTags() {
+  const wrap = document.getElementById('cl-ops-tags');
+  if(!wrap) return;
+  wrap.innerHTML = '';
+  _selectedOps.forEach(function(op) {
+    const tag = document.createElement('span');
+    tag.style.cssText = 'display:inline-flex;align-items:center;gap:5px;background:#eef2ff;border:1.5px solid #b0c0e8;border-radius:20px;padding:4px 10px 4px 12px;font-size:12px;font-weight:700;color:#1E3A6E;';
+    tag.innerHTML = op.name + '<button style="background:none;border:none;cursor:pointer;color:#8a9abf;font-size:14px;line-height:1;padding:0 0 0 2px;">×</button>';
+    tag.querySelector('button').onclick = function(){ removeOpTag(op.name); };
+    wrap.appendChild(tag);
+  });
+}
+
+// Sluit dropdown als buiten geklikt
+document.addEventListener('click', function(e) {
+  const wrap = document.getElementById('ops-dropdown-wrap');
+  if(wrap && !wrap.contains(e.target)) {
+    const list = document.getElementById('cl-ops-list');
+    if(list) list.style.display = 'none';
+    _opsDropdownOpen = false;
+  }
+});
+
+// ── Klacht / Afwijking modus ──────────────────────────────────────────────────
+window.updateComplaintMode = function() {
+  const isAfwijking = document.getElementById('cm-afwijking').checked;
+  const modal = document.getElementById('complaint-modal');
+  // Header kleur
+  const hdr = modal ? modal.querySelector('div[style*="background:#8b1a1a"]') : null;
+  if(hdr) hdr.style.background = isAfwijking ? '#E67E00' : '#8b1a1a';
+  // Lbl styling
+  const lblK = document.getElementById('lbl-klacht-mode');
+  const lblA = document.getElementById('lbl-afwijking-mode');
+  if(lblK) { lblK.style.background = !isAfwijking?'#fdf0f0':'#fff'; lblK.style.borderColor = !isAfwijking?'#8b1a1a':'#dde3f0'; }
+  if(lblA) { lblA.style.background = isAfwijking?'#fff8f0':'#fff'; lblA.style.borderColor = isAfwijking?'#E67E00':'#dde3f0'; }
+  // Titel
+  const title = modal ? modal.querySelector('span[style*="font-size:16px"]') : null;
+  if(title) title.textContent = isAfwijking ? '📋 Afwijking registreren' : '⚠️ Interne / Externe Klacht registreren';
+};
+
+
+// ── Extra namen voor klachtenformulier ───────────────────────────────────────
+window.addExtraName = function() {
+  const inp = document.getElementById('cl-extra-name');
+  const name = (inp.value || '').trim();
+  if(!name) return;
+  const wrap = document.getElementById('cl-extra-names');
+  const tag = document.createElement('span');
+  tag.style.cssText = 'display:inline-flex;align-items:center;gap:5px;background:#eef2ff;border:1.5px solid #b0c0e8;border-radius:20px;padding:4px 10px 4px 12px;font-size:12px;font-weight:700;color:#1E3A6E;';
+  tag.innerHTML = name + '<button onclick="this.parentElement.remove()" style="background:none;border:none;cursor:pointer;color:#8a9abf;font-size:14px;line-height:1;padding:0 0 0 2px;">×</button>';
+  wrap.appendChild(tag);
+  inp.value = '';
+  inp.focus();
+};
+
+// ── Foto preview voor klachtenformulier ──────────────────────────────────────
+var _complaintPhotoBase64 = null;
+
+window.handleDescPaste = function(e) {
+  const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+  for(let i = 0; i < items.length; i++) {
+    if(items[i].type.indexOf('image') !== -1) {
+      e.preventDefault(); // Voorkom dat de afbeelding als tekst ingeplakt wordt
+      const file = items[i].getAsFile();
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        showComplaintPhotoPreview(ev.target.result);
+      };
+      reader.readAsDataURL(file);
+      return;
+    }
+  }
+  // Geen afbeelding → gewone tekst plakken (standaard gedrag)
+};
+
+function showComplaintPhotoPreview(dataUrl) {
+  _complaintPhotoBase64 = dataUrl;
+  const img = document.getElementById('cl-photo-img');
+  const preview = document.getElementById('cl-photo-preview');
+  const hint = document.getElementById('cl-photo-hint');
+  if(img) img.src = dataUrl;
+  if(preview) preview.style.display = 'block';
+  if(hint) hint.style.display = 'none';
+}
+
+window.previewComplaintPhoto = function(inp) {
+  if(!inp.files || !inp.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = function(e) { showComplaintPhotoPreview(e.target.result); };
+  reader.readAsDataURL(inp.files[0]);
+};
+
+window.removeComplaintPhoto = function() {
+  _complaintPhotoBase64 = null;
+  const preview = document.getElementById('cl-photo-preview');
+  const hint = document.getElementById('cl-photo-hint');
+  if(preview) preview.style.display = 'none';
+  if(hint) hint.style.display = 'inline';
+};
+
+window.openPhotoFull = function() {
+  const overlay = document.getElementById('cl-photo-overlay');
+  document.getElementById('cl-photo-full').src = document.getElementById('cl-photo-img').src;
+  overlay.style.display = 'flex';
+};
+
+// ── KLACHTENRAPPORT ──────────────────────────────────────────────────────────
+window.openRapportModal = function() {
+  const today = new Date();
+  const p2 = n => String(n).padStart(2,'0');
+  const toStr = d => d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());
+  // Standaard: afgelopen 30 dagen
+  const from = new Date(today); from.setDate(from.getDate()-30);
+  document.getElementById('rapport-from').value = toStr(from);
+  document.getElementById('rapport-to').value   = toStr(today);
+  document.getElementById('rapport-modal').style.display = 'flex';
+};
+
+window.generateRapport = function() {
+  const from = document.getElementById('rapport-from').value;
+  const to   = document.getElementById('rapport-to').value;
+  if(!from || !to) { alert('Vul beide datums in.'); return; }
+
+  const fromMs = new Date(from + 'T00:00:00').getTime();
+  const toMs   = new Date(to   + 'T23:59:59').getTime();
+  const inclIntern  = document.getElementById('rpt-intern').checked;
+  const inclExtern  = document.getElementById('rpt-extern').checked;
+  const inclAfwijk  = document.getElementById('rpt-afwijk').checked;
+  const format = document.querySelector('input[name="rpt-format"]:checked').value;
+
+  // Haal alle klachten op uit allComplaints (globale cache)
+  const allData = window._allComplaintsCache || {};
+  const entries = Object.entries(allData).map(([k,v]) => Object.assign({_key:k},v));
+
+  // Filter op periode + type
+  const filtered = entries.filter(function(c) {
+    const d = new Date(c.datum || c.ts || 0).getTime() ||
+              (c.datum ? new Date(c.datum+'T00:00:00').getTime() : 0);
+    if(d < fromMs || d > toMs) return false;
+    const mode = c.mode || 'klacht';
+    const type = c.type || 'intern';
+    if(mode === 'afwijking' && !inclAfwijk) return false;
+    if(mode !== 'afwijking' && type === 'intern' && !inclIntern) return false;
+    if(mode !== 'afwijking' && type === 'extern' && !inclExtern) return false;
+    return true;
+  }).sort(function(a,b){ return (a.datum||'').localeCompare(b.datum||''); });
+
+  document.getElementById('rapport-modal').style.display = 'none';
+
+  if(!filtered.length) {
+    alert('Geen klachten/afwijkingen gevonden in de geselecteerde periode.');
+    return;
+  }
+
+  if(format === 'csv') {
+    exportRapportCSV(filtered, from, to);
+  } else {
+    printRapport(filtered, from, to);
+  }
+};
+
+function exportRapportCSV(data, from, to) {
+  const cols = ['Datum','Nr','Type','Modus','Machine','PO','Hoeveelheid','Eenheid','Operators','Reden','Maatregel','Opmerking'];
+  const rows = data.map(function(c) {
+    return [
+      c.datum||'', c.klachtnummer||'', c.type||'', c.mode||'klacht',
+      c.machine||'', c.po||'',
+      c.qty||'', c.units||'',
+      [].concat(c.operators||[]).concat(c.extraNames||[]).join(' / '),
+      (c.reden||'').replace(/\n/g,' '), (c.maatregel||'').replace(/\n/g,' '),
+      (c.description||c.desc||'').replace(/\n/g,' ')
+    ].map(function(v){ return '"'+String(v||'').replace(/"/g,'""')+'"'; }).join(';');
+  });
+  const csv = [cols.map(function(c){return '"'+c+'"';}).join(';')].concat(rows).join('\n');
+  const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'klachtenrapport_'+from+'_'+to+'.csv';
+  a.click();
+}
+
+function printRapport(data, from, to) {
+  const fmtDate = function(d) {
+    if(!d) return '—';
+    const p = d.split('-');
+    return p.length===3 ? p[2]+'/'+p[1]+'/'+p[0] : d;
+  };
+  const fmtQty = function(qty, unit) {
+    if(!qty && qty !== 0) return '—';
+    const n = parseFloat(qty);
+    if(isNaN(n)) return '—';
+    return n.toLocaleString('nl-BE', {maximumFractionDigits:2}) + ' ' + (unit||'kg');
+  };
+  const modeColor  = {klacht:'#8b1a1a', afwijking:'#c67000'};
+  const modeBg     = {klacht:'#fdf0f0', afwijking:'#fff8f0'};
+  const modeLabel  = {klacht:'⚠️ Klacht', afwijking:'📋 Afwijking'};
+  const typeLabel  = {intern:'Intern', extern:'Extern'};
+
+  // Totaal kg berekenen
+  var totalKg = 0;
+  var hasQty = false;
+  data.forEach(function(c) {
+    const q = parseFloat(c.qty);
+    if(!isNaN(q) && q > 0) { totalKg += q; hasQty = true; }
+  });
+
+  let rows = data.map(function(c, i) {
+    const mode  = c.mode||'klacht';
+    const ops   = [].concat(c.operators||[]).concat(c.extraNames||[]).filter(Boolean).join(', ') || '—';
+    const photo = c.photo ? '<div style="margin-top:6px;"><img src="'+c.photo+'" style="max-height:100px;max-width:160px;border-radius:6px;border:1px solid #ddd;cursor:pointer;" onclick="this.style.maxHeight=this.style.maxHeight===\'none\'?\'100px\':\'none\'"></div>' : '';
+    const qty = parseFloat(c.qty);
+    const qtyStr = (!isNaN(qty) && qty > 0)
+      ? '<b style="color:#8b1a1a;">'+qty.toLocaleString('nl-BE',{maximumFractionDigits:2})+'</b> '+(c.units||'kg')
+      : '—';
+    return '<tr style="background:'+(i%2?'#f9fafb':'#fff')+';">'
+      +'<td style="padding:9px 8px;border-bottom:1px solid #eee;font-weight:700;white-space:nowrap;">'+fmtDate(c.datum)+'</td>'
+      +'<td style="padding:9px 8px;border-bottom:1px solid #eee;"><span style="background:'+modeBg[mode]+';color:'+modeColor[mode]+';padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">'+modeLabel[mode]+'</span><br><span style="font-size:11px;color:#888;">'+(typeLabel[c.type]||c.type||'')+'</span></td>'
+      +'<td style="padding:9px 8px;border-bottom:1px solid #eee;font-size:12px;color:#555;">'+(c.klachtnummer||'—')+'</td>'
+      +'<td style="padding:9px 8px;border-bottom:1px solid #eee;">'+(c.machine||'—')+'</td>'
+      +'<td style="padding:9px 8px;border-bottom:1px solid #eee;">'+(c.po||'—')+'</td>'
+      +'<td style="padding:9px 8px;border-bottom:1px solid #eee;white-space:nowrap;text-align:right;">'+qtyStr+'</td>'
+      +'<td style="padding:9px 8px;border-bottom:1px solid #eee;font-size:12px;">'+(ops)+'</td>'
+      +'<td style="padding:9px 8px;border-bottom:1px solid #eee;font-size:12px;">'+(c.description||c.desc||'—')+photo+'</td>'
+      +'<td style="padding:9px 8px;border-bottom:1px solid #eee;font-size:12px;color:#1E3A6E;">'+(c.reden||'—')+'</td>'
+      +'<td style="padding:9px 8px;border-bottom:1px solid #eee;font-size:12px;color:#1E3A6E;">'+(c.maatregel||'—')+'</td>'
+      +'</tr>';
+  }).join('');
+
+  // Totaalrij
+  const totalRow = hasQty
+    ? '<tr style="background:#1E3A6E;">'
+      +'<td colspan="5" style="padding:10px 8px;color:#fff;font-weight:800;font-size:13px;text-align:right;">TOTAAL AFGEKEURDE HOEVEELHEID</td>'
+      +'<td style="padding:10px 8px;color:#fff;font-weight:900;font-size:15px;text-align:right;white-space:nowrap;">'+totalKg.toLocaleString('nl-BE',{maximumFractionDigits:2})+' kg</td>'
+      +'<td colspan="4" style="padding:10px 8px;color:rgba(255,255,255,.6);font-size:11px;">'
+        +data.length+' record(s) | Klachten: '+data.filter(function(c){return (c.mode||'klacht')==='klacht';}).length
+        +' | Afwijkingen: '+data.filter(function(c){return c.mode==='afwijking';}).length
+      +'</td></tr>'
+    : '';
+
+  const win = window.open('','_blank');
+  win.document.write('<!DOCTYPE html><html lang="nl"><head><meta charset="UTF-8">'
+    +'<title>Klachtenrapport '+fmtDate(from)+' – '+fmtDate(to)+'</title>'
+    +'<style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:Segoe UI,Arial,sans-serif;padding:24px;color:#222;font-size:13px;}'
+    +'h1{font-size:18px;color:#1E3A6E;margin-bottom:4px;}h2{font-size:13px;color:#5a6a8a;font-weight:400;margin-bottom:16px;}'
+    +'.meta{display:flex;gap:24px;margin-bottom:20px;font-size:12px;color:#555;border-bottom:2px solid #1E3A6E;padding-bottom:12px;align-items:center;}'
+    +'table{width:100%;border-collapse:collapse;font-size:12px;}th{background:#1E3A6E;color:#fff;padding:8px;text-align:left;font-size:11px;white-space:nowrap;}'
+    +'th.num{text-align:right;}td{vertical-align:top;}'
+    +'@media print{.no-print{display:none!important;}body{padding:8px;font-size:11px;}h1{font-size:15px;}}'
+    +'</style></head><body>'
+    +'<h1>📊 IPB — Klachten &amp; Afwijkingenrapport</h1>'
+    +'<h2>Periode: '+fmtDate(from)+' t/m '+fmtDate(to)+'</h2>'
+    +'<div class="meta">'
+      +'<span><b>Totaal records:</b> '+data.length+'</span>'
+      +'<span><b>Klachten:</b> '+data.filter(function(c){return (c.mode||'klacht')==='klacht';}).length+'</span>'
+      +'<span><b>Afwijkingen:</b> '+data.filter(function(c){return c.mode==='afwijking';}).length+'</span>'
+      +(hasQty?'<span style="color:#8b1a1a;font-weight:800;font-size:14px;">Totaal afgekeurd: '+totalKg.toLocaleString('nl-BE',{maximumFractionDigits:2})+' kg</span>':'')
+      +'<button class="no-print" onclick="window.print()" style="margin-left:auto;padding:6px 16px;background:#1E3A6E;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;">🖨️ Afdrukken</button>'
+    +'</div>'
+    +'<table>'
+      +'<thead><tr>'
+        +'<th>Datum</th><th>Type</th><th>Nr</th><th>Machine</th><th>PO</th>'
+        +'<th class="num">Hoeveelheid</th><th>Operator(en)</th><th>Omschrijving</th>'
+        +'<th>Reden afwijking</th><th>Maatregel</th>'
+      +'</tr></thead>'
+      +'<tbody>'+rows+'</tbody>'
+      +'<tfoot>'+totalRow+'</tfoot>'
+    +'</table>'
+    +'</body></html>');
+  win.document.close();
+}
+
+
 window.saveComplaint = function() {
   if(!requireLogin()) return;
   const datum = document.getElementById('cl-datum').value;
   const po = document.getElementById('cl-po').value.trim();
+  // Extra namen (tags)
+  const extraNames = Array.from(document.querySelectorAll('#cl-extra-names span')).map(function(t){return t.childNodes[0].textContent.trim();}).filter(Boolean);
   const machine = document.getElementById('cl-machine').value;
   const desc = document.getElementById('cl-desc').value.trim();
   const qty = parseFloat(document.getElementById('cl-qty').value)||0;
@@ -4508,6 +4899,8 @@ let qualityFilter = 'all';
 let qualityTab = 'meldingen';
 
 window.switchQTab = function(tab) {
+  // 'klachten' is verplaatst naar archief
+  if(tab === 'klachten') tab = 'archief';
   qualityTab = tab;
   ['meldingen','archief','klachten'].forEach(function(t) {
     const panel = document.getElementById('qpanel-'+t);
@@ -4518,8 +4911,8 @@ window.switchQTab = function(tab) {
       btn.style.borderBottomColor = t===tab?'var(--ipb-navy)':'transparent';
     }
   });
-  if(tab==='klachten') renderComplaints();
-  else renderQuality();
+  if(tab==='archief') { renderQuality(); renderComplaints(); }
+  else if(tab==='klachten') renderQuality();
 };
 
 // ── Klachten Firebase listener & render ────────────────────────────────────
@@ -4537,7 +4930,7 @@ function initComplaintsListener() {
       cntEl.textContent = cnt;
       cntEl.style.display = cnt > 0 ? 'inline' : 'none';
     }
-    if(qualityTab === 'klachten') renderComplaints();
+    renderComplaints(); // Altijd renderen - complaints-list is in archief panel (display:none tot tab actief)
   });
 }
 
@@ -5059,6 +5452,50 @@ document.addEventListener('keydown', function(e) {
 });
 </script>
 
+<!-- RAPPORT MODAL -->
+<div id="rapport-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9500;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;padding:24px;width:min(480px,94vw);box-shadow:0 20px 60px rgba(0,0,0,.3);position:relative;">
+    <button onclick="document.getElementById('rapport-modal').style.display='none'"
+      style="position:absolute;top:14px;right:14px;background:none;border:none;font-size:22px;cursor:pointer;color:#8a9abf;">×</button>
+    <h2 style="font-size:16px;font-weight:800;color:#1E3A6E;margin-bottom:16px;">📊 Klachtenrapport genereren</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+      <div>
+        <label style="font-size:11px;font-weight:700;color:#5a6a8a;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px;">Van datum</label>
+        <input type="date" id="rapport-from" style="width:100%;padding:8px 10px;border:1.5px solid #dde3f0;border-radius:8px;font-size:13px;">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;color:#5a6a8a;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px;">Tot datum</label>
+        <input type="date" id="rapport-to" style="width:100%;padding:8px 10px;border:1.5px solid #dde3f0;border-radius:8px;font-size:13px;">
+      </div>
+    </div>
+    <div style="margin-bottom:14px;">
+      <label style="font-size:11px;font-weight:700;color:#5a6a8a;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:8px;">Type</label>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;">
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" id="rpt-intern" checked> Interne klachten</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" id="rpt-extern" checked> Externe klachten</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" id="rpt-afwijk" checked> Afwijkingen</label>
+      </div>
+    </div>
+    <div style="margin-bottom:18px;">
+      <label style="font-size:11px;font-weight:700;color:#5a6a8a;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:8px;">Exportformaat</label>
+      <div style="display:flex;gap:20px;">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="radio" name="rpt-format" value="print" checked> 🖨️ Afdrukken / PDF</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="radio" name="rpt-format" value="csv"> 📄 CSV exporteren</label>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="document.getElementById('rapport-modal').style.display='none'"
+        style="flex:1;padding:10px;border:1.5px solid #dde3f0;border-radius:8px;background:transparent;font-size:13px;font-weight:700;cursor:pointer;color:#8a9abf;">
+        Annuleer
+      </button>
+      <button onclick="window.generateRapport&&window.generateRapport()"
+        style="flex:2;padding:10px;border:none;border-radius:8px;background:#1E3A6E;color:#fff;font-size:13px;font-weight:700;cursor:pointer;">
+        📊 Genereer rapport
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- KLACHT / AFKEUR FORMULIER -->
 <div id="complaint-modal" style="display:none;position:fixed;inset:0;background:rgba(15,30,61,.55);z-index:400;align-items:center;justify-content:center;overflow-y:auto;">
   <div style="background:#fff;border-radius:16px;width:min(640px,96vw);margin:20px auto;box-shadow:0 8px 40px rgba(0,0,0,.25);">
@@ -5067,6 +5504,28 @@ document.addEventListener('keydown', function(e) {
       <button onclick="closeComplaintForm()" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;line-height:1;">×</button>
     </div>
     <div style="padding:22px;display:flex;flex-direction:column;gap:14px;">
+
+      <!-- Klacht / Afwijking toggle + Klachtnummer -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding-bottom:14px;border-bottom:1.5px solid #f0e8e8;">
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#5a6a8a;text-transform:uppercase;letter-spacing:.05em;">Type registratie</label>
+          <div style="display:flex;gap:10px;margin-top:8px;">
+            <label id="lbl-klacht-mode" style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:8px 14px;border-radius:8px;border:2px solid #8b1a1a;background:#fdf0f0;flex:1;justify-content:center;">
+              <input type="radio" name="cl-mode" id="cm-klacht" value="klacht" checked onchange="updateComplaintMode()">
+              <span style="font-size:13px;font-weight:800;color:#8b1a1a;">⚠️ Klacht</span>
+            </label>
+            <label id="lbl-afwijking-mode" style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:8px 14px;border-radius:8px;border:2px solid #dde3f0;background:#fff;flex:1;justify-content:center;">
+              <input type="radio" name="cl-mode" id="cm-afwijking" value="afwijking" onchange="updateComplaintMode()">
+              <span style="font-size:13px;font-weight:800;color:#E67E00;">📋 Afwijking</span>
+            </label>
+          </div>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#5a6a8a;text-transform:uppercase;letter-spacing:.05em;">Klacht- / Afwijkingsnummer</label>
+          <input type="text" id="cl-number" placeholder="bv. KL-2026-001"
+            style="width:100%;margin-top:8px;padding:9px 12px;border:1.5px solid #dde3f0;border-radius:8px;font-size:13px;font-family:inherit;font-weight:700;letter-spacing:.02em;">
+        </div>
+      </div>
 
       <!-- Type + Afdeling -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
@@ -5125,13 +5584,13 @@ document.addEventListener('keydown', function(e) {
       <!-- Beschrijving -->
       <div>
         <label style="font-size:11px;font-weight:700;color:#5a6a8a;text-transform:uppercase;letter-spacing:.05em;">Beschrijving klacht</label>
-        <textarea id="cl-desc" rows="3" placeholder="Omschrijf het probleem..." style="width:100%;margin-top:5px;padding:9px 12px;border:1.5px solid #dde3f0;border-radius:8px;font-size:13px;resize:vertical;font-family:inherit;"></textarea>
+        <textarea id="cl-desc" rows="3" placeholder="Omschrijf het probleem… (foto: Ctrl+V plakken)" style="width:100%;margin-top:5px;padding:9px 12px;border:1.5px solid #dde3f0;border-radius:8px;font-size:13px;resize:vertical;font-family:inherit;" onpaste="handleDescPaste(event)"></textarea>
       </div>
 
       <!-- Hoeveelheid + eenheid -->
       <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;">
         <div>
-          <label style="font-size:11px;font-weight:700;color:#5a6a8a;text-transform:uppercase;letter-spacing:.05em;">Totale hoeveelheid</label>
+          <label style="font-size:11px;font-weight:700;color:#5a6a8a;text-transform:uppercase;letter-spacing:.05em;">Totaal afgekeurde hoeveelheid</label>
           <input type="number" id="cl-qty" min="0" step="0.1" placeholder="0" style="width:100%;margin-top:5px;padding:9px 12px;border:1.5px solid #dde3f0;border-radius:8px;font-size:13px;" oninput="updateComplaintSplit()">
         </div>
         <div>
@@ -5143,16 +5602,88 @@ document.addEventListener('keydown', function(e) {
         </div>
       </div>
 
-      <!-- Operatoren multi-select -->
+      <!-- Operatoren dropdown met zoekfunctie -->
       <div>
         <label style="font-size:11px;font-weight:700;color:#5a6a8a;text-transform:uppercase;letter-spacing:.05em;">Betrokken operator(en) <span style="font-weight:400;color:#8a9abf;font-style:italic;">— meerdere mogelijk</span></label>
-        <div id="cl-operators" style="margin-top:8px;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px;max-height:200px;overflow-y:auto;border:1.5px solid #dde3f0;border-radius:8px;padding:10px;"></div>
+        <!-- Dropdown -->
+        <div style="position:relative;margin-top:8px;" id="ops-dropdown-wrap">
+          <div style="display:flex;gap:6px;">
+            <div style="position:relative;flex:1;">
+              <input id="cl-ops-search" type="text" placeholder="🔍 Zoek of selecteer operator…"
+                style="width:100%;padding:9px 12px;border:1.5px solid #dde3f0;border-radius:8px;font-size:13px;font-family:inherit;"
+                oninput="filterOpsDropdown()" onfocus="openOpsDropdown()" autocomplete="off">
+              <div id="cl-ops-list" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid #dde3f0;border-radius:0 0 8px 8px;box-shadow:0 4px 16px rgba(0,0,0,.12);max-height:200px;overflow-y:auto;z-index:50;"></div>
+            </div>
+          </div>
+          <!-- Geselecteerde operators als tags -->
+          <div id="cl-ops-tags" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;min-height:8px;"></div>
+        </div>
+        <!-- Verborgen originele container voor compatibiliteit -->
+        <div id="cl-operators" style="display:none;"></div>
+      </div>
+
+      <!-- Extra naam toevoegen -->
+      <div style="margin-top:8px;display:flex;gap:8px;align-items:center;">
+        <input id="cl-extra-name" type="text" placeholder="Extra naam toevoegen…"
+          style="flex:1;padding:7px 10px;border:1.5px solid #dde3f0;border-radius:8px;font-size:13px;font-family:inherit;"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();addExtraName();}">
+        <button onclick="addExtraName()"
+          style="padding:7px 14px;border-radius:8px;background:#1E3A6E;color:#fff;border:none;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">
+          ＋ Toevoegen
+        </button>
+      </div>
+      <div id="cl-extra-names" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;min-height:0;"></div>
+
+      <!-- Foto toevoegen -->
+      <div style="margin-top:4px;">
+        <label style="font-size:11px;font-weight:700;color:#5a6a8a;text-transform:uppercase;letter-spacing:.05em;">
+          📷 Foto bijvoegen <span style="font-weight:400;color:#8a9abf;font-style:italic;">— optioneel</span>
+        </label>
+        <div style="margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <div id="cl-photo-preview" style="display:none;position:relative;">
+            <img id="cl-photo-img" style="height:72px;width:72px;object-fit:cover;border-radius:8px;border:2px solid #dde3f0;cursor:pointer;"
+              onclick="openPhotoFull()" title="Klik om te vergroten">
+            <button onclick="removeComplaintPhoto()"
+              style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#C62828;color:#fff;border:none;font-size:11px;cursor:pointer;line-height:1;z-index:1;">×</button>
+          </div>
+          <span id="cl-photo-hint" style="font-size:11px;color:#8a9abf;font-style:italic;">
+            📋 Plak een schermafbeelding via <b>Ctrl+V</b> in het omschrijvingsveld
+          </span>
+        </div>
+      </div>
+
+      <!-- Foto fullscreen overlay -->
+      <div id="cl-photo-overlay" onclick="this.style.display='none'"
+        style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;cursor:zoom-out;">
+        <img id="cl-photo-full" style="max-width:92vw;max-height:92vh;border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.5);">
       </div>
 
       <!-- Verdeling preview -->
       <div id="cl-split-wrap" style="display:none;background:#f4f6fb;border-radius:8px;padding:12px;">
         <div style="font-size:11px;font-weight:700;color:#5a6a8a;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Verdeling hoeveelheid</div>
         <div id="cl-split-rows"></div>
+      </div>
+
+      <!-- Velden enkel voor Algemeen / Ploegchef -->
+      <div id="cl-restricted-fields" style="display:none;border-top:2px solid #e8ecf7;padding-top:14px;margin-top:4px;">
+        <div style="font-size:10px;font-weight:800;color:#5a6a8a;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+          <span style="background:#1E3A6E;color:#fff;padding:2px 8px;border-radius:20px;font-size:9px;">🔒 Ploegchef / Algemeen</span>
+          Beheerinformatie
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div>
+            <label style="font-size:11px;font-weight:700;color:#5a6a8a;text-transform:uppercase;letter-spacing:.05em;">Reden van de afwijking</label>
+            <textarea id="cl-reden" rows="3"
+              placeholder="Beschrijf de oorzaak van de afwijking of klacht…"
+              style="width:100%;margin-top:6px;padding:9px 12px;border:1.5px solid #b0c0e8;border-radius:8px;font-size:13px;resize:vertical;font-family:inherit;background:#f8f9ff;"></textarea>
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:700;color:#5a6a8a;text-transform:uppercase;letter-spacing:.05em;">Corrigerende / preventieve maatregel</label>
+            <textarea id="cl-maatregel" rows="3"
+              placeholder="Welke actie werd of wordt ondernomen…"
+              style="width:100%;margin-top:6px;padding:9px 12px;border:1.5px solid #b0c0e8;border-radius:8px;font-size:13px;resize:vertical;font-family:inherit;background:#f8f9ff;"></textarea>
+          </div>
+        </div>
       </div>
 
       <!-- Submit -->
@@ -5165,6 +5696,4 @@ document.addEventListener('keydown', function(e) {
 </div>
 
 <!-- KLACHT NOTIFICATIE BALLON -->
-<div id="klacht-balloon-wrap" style="position:fixed;bottom:20px;right:20px;z-index:8500;display:flex;flex-direction:column;gap:8px;align-items:flex-end;pointer-events:none;"></div>
-</body>
-</html>
+<div id="klacht-balloon-wrap" style="position:fixed;bottom:20px;right:20px;z-index:8500;display:flex;flex-direction:column;gap:8px;align
