@@ -118,6 +118,8 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8ecf5;color:var(--ipb-
 .sgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px;}
 .sitem{padding:6px 10px;border-radius:var(--rs);background:var(--ipb-offwhite);font-size:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;}
 .sni{padding:6px 10px;border-radius:var(--rs);background:var(--ipb-offwhite);font-size:12px;border-left:3px solid #8a9abf;margin-bottom:4px;}
+.sreplies{margin:-2px 0 8px 14px;padding-left:8px;border-left:2px solid #cdd9f0;}
+.sreply{font-size:11px;color:#40506e;margin:2px 0;line-height:1.35;}
 .sni.n-planning{border-left-color:var(--ipb-green);}.sni.n-quality{border-left-color:#378ADD;}.sni.n-warehouse{border-left-color:#f5a623;}
 .sod{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;}
 .sodb{flex:1;min-width:180px;padding:10px 14px;border-radius:var(--r);border:1.5px solid var(--ipb-green);background:var(--ipb-green-bg);}
@@ -511,6 +513,30 @@ textarea.fi{height:80px;resize:vertical;}
 <div class="page" id="page-incidents">
   <div class="card" style="margin-bottom:14px;">
     <div class="ch"><div class="chl"><div class="ci" style="background:#fef1f1;">⚠️</div><span class="ct">Schadegeval / Arbeidsongeval</span><span class="cc" id="cnt-incidents">0</span></div><button class="ab" onclick="openModal('incident')">+</button></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:2px 14px 12px;">
+      <span style="font-size:12px;font-weight:700;color:var(--ipb-text-muted);">Filter:</span>
+      <select id="inc-f-type" onchange="renderIncidents()" style="font-size:12px;border:1px solid var(--ipb-border);border-radius:6px;padding:5px 8px;background:#fff;">
+        <option value="">Alle categorieën</option>
+        <option value="personal">Lichamelijk letsel</option>
+        <option value="material">Materiële schade</option>
+        <option value="environmental">Milieu-incident</option>
+        <option value="other">Andere</option>
+      </select>
+      <select id="inc-f-status" onchange="renderIncidents()" style="font-size:12px;border:1px solid var(--ipb-border);border-radius:6px;padding:5px 8px;background:#fff;">
+        <option value="">Alle statussen</option>
+        <option value="open">🔴 Open</option>
+        <option value="followup">🟠 In opvolging</option>
+        <option value="closed">🟢 Afgesloten</option>
+      </select>
+      <select id="inc-f-sev" onchange="renderIncidents()" style="font-size:12px;border:1px solid var(--ipb-border);border-radius:6px;padding:5px 8px;background:#fff;">
+        <option value="">Alle ernst</option>
+        <option value="low">Licht</option>
+        <option value="medium">Matig</option>
+        <option value="high">Ernstig</option>
+      </select>
+      <button onclick="exportIncidentsXlsx()" style="margin-left:auto;font-size:12px;font-weight:700;border:none;border-radius:6px;padding:6px 12px;background:#217346;color:#fff;cursor:pointer;">⬇ Excel</button>
+      <button onclick="exportIncidentsPdf()" style="font-size:12px;font-weight:700;border:none;border-radius:6px;padding:6px 12px;background:var(--ipb-navy);color:#fff;cursor:pointer;">🖨️ PDF</button>
+    </div>
     <div class="cb" id="list-incidents"></div>
   </div>
 </div>
@@ -1897,8 +1923,9 @@ window.takeSnapshot=function(auto=false){
     dept2:stripPhotos(state.dept)||{},
     escalations:stripPhotos(state.escalations)||{},
     general:stripPhotos(state.general)||{},
-    td:state.td||{},
-    incidents:stripPhotos(state.incidents)||{}
+    td:state.td||{}
+    // schadegevallen bewust NIET meer in elke snapshot (niet cumuleren) —
+    // ze staan permanent, per moment, in het incidents-archief
   };
 
   // Fetch operator history for all lines
@@ -1918,14 +1945,28 @@ window.takeSnapshot=function(auto=false){
     })
   );
 
-  Promise.all(histPromises).then(results => {
-    const lineHistory = {};
-    results.forEach(r => { lineHistory[r.line] = r.entries; });
+  // Fetch afdelings-/operatormeldingen van ALLE afdelingen, inclusief reacties
+  const MSG_DEPTS = ['P1','P4','Converting'];
+  const msgPromises = MSG_DEPTS.map(d =>
+    new Promise(resolve => {
+      onValue(ref(db, d+'/dept'), snap => {
+        resolve({msgDept:d, data: stripPhotos(snap.val()||{})});
+      }, {onlyOnce:true});
+    })
+  );
+
+  Promise.all(histPromises.concat(msgPromises)).then(results => {
+    const lineHistory = {}, deptMessages = {};
+    results.forEach(r => {
+      if(r.line !== undefined) lineHistory[r.line] = r.entries;
+      else if(r.msgDept !== undefined) deptMessages[r.msgDept] = r.data;
+    });
     snapData.lineHistory = lineHistory;
+    snapData.deptMessages = deptMessages;
     push(ref(db,'archive/'+snapDept), snapData);
     showToast(auto?'📸 Automatische snapshot opgeslagen ✓':'📸 Snapshot opgeslagen in archief ✓');
   }).catch(() => {
-    // Save without history if fetch fails
+    // Save without extra fetch if it fails
     push(ref(db,'archive/'+snapDept), snapData);
     showToast(auto?'📸 Automatische snapshot opgeslagen ✓':'📸 Snapshot opgeslagen in archief ✓');
   });
@@ -1963,6 +2004,7 @@ function rPerson(key,item){
   const a=document.createElement('div');a.className='av '+gav(item.name);a.textContent=ini(item.name);
   const info=document.createElement('div');info.style.flex='1';info.innerHTML='<div class="pn">'+item.name+'</div><div class="pr2">'+(item.role||'')+'</div>'+(item.note?'<div style="font-size:11px;color:var(--ipb-text-muted);margin-top:2px;font-style:italic;">'+item.note+'</div>':'')+mkStamp(item,key);
   const r=document.createElement('div');r.className='srr';
+  if(item.hrNotify){const hb=document.createElement('span');hb.textContent='✉ HR';hb.title='Gemeld aan HR';hb.style.cssText='background:#1E3A6E;color:#fff;font-size:9px;font-weight:800;padding:2px 7px;border-radius:20px;margin-right:4px;';r.appendChild(hb);}
   const b=document.createElement('span');b.className='badge '+bc(item.status);b.textContent=PL[item.status]||item.status;b.title='Klik om te wijzigen';
   b.onclick=()=>{const n=PC[(PC.indexOf(item.status)+1)%PC.length];update(ref(db,dept+'/people/'+key),{status:n});};
   r.appendChild(b);r.appendChild(db2(dept+'/people/'+key));row.appendChild(a);row.appendChild(info);row.appendChild(r);
@@ -2355,14 +2397,101 @@ function rIncident(key,item){
   if(item.photo&&item.photo.data){const wrap=document.createElement('div');wrap.style.cssText='margin:0 14px 10px;border-radius:6px;overflow:hidden;position:relative;';const img=document.createElement('img');img.src=item.photo.data;img.style.cssText='width:100%;max-height:200px;object-fit:cover;cursor:pointer;display:block;border-radius:6px;';img.onclick=function(){openLightbox(item.photo.data);};const d2=document.createElement('button');d2.className='item-photo-del';d2.innerHTML='🗑';d2.style.cssText='position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,.5);color:#fff;border:none;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;';d2.onclick=function(){deleteItemPhoto('incidents',key);};wrap.appendChild(img);wrap.appendChild(d2);card.appendChild(wrap);}
   return card;
 }
+function incTimeMs(v){ if(v&&v.incidentTime){var t=Date.parse(v.incidentTime); if(!isNaN(t))return t;} return 0; }
+function incFmtTime(t){ if(!t) return ''; try{var d=new Date(t); if(isNaN(d.getTime()))return t; var p=function(n){return String(n).padStart(2,'0');}; return p(d.getDate())+'/'+p(d.getMonth()+1)+'/'+d.getFullYear()+' '+p(d.getHours())+':'+p(d.getMinutes());}catch(e){return t;} }
+function incActiveFilters(){
+  var t=(document.getElementById('inc-f-type')||{}).value||'';
+  var s=(document.getElementById('inc-f-status')||{}).value||'';
+  var v=(document.getElementById('inc-f-sev')||{}).value||'';
+  var parts=[];
+  if(t) parts.push('Categorie: '+(ITL[t]||t));
+  if(s) parts.push('Status: '+(ISL[s]||s).replace(/^[🔴🟠🟢]\s*/,''));
+  if(v) parts.push('Ernst: '+(IVL[v]||v));
+  return parts.length?parts.join(' · '):'Alle schadegevallen';
+}
+function getFilteredIncidents(){
+  var fType=(document.getElementById('inc-f-type')||{}).value||'';
+  var fStatus=(document.getElementById('inc-f-status')||{}).value||'';
+  var fSev=(document.getElementById('inc-f-sev')||{}).value||'';
+  var entries=Object.entries(state.incidents||{}).filter(function(e){var v=e[1]||{};
+    return (!fType||v.type===fType) && (!fStatus||v.status===fStatus) && (!fSev||v.severity===fSev);
+  });
+  entries.sort(function(a,b){ return incTimeMs(b[1])-incTimeMs(a[1]) || b[0].localeCompare(a[0]); });
+  return entries;
+}
+window.renderIncidents=function(){
+  const list=document.getElementById('list-incidents'); if(!list) return;
+  const entries=getFilteredIncidents();
+  const allCnt=Object.keys(state.incidents||{}).length;
+  const filtered=entries.length!==allCnt;
+  const cntEl=document.getElementById('cnt-incidents');
+  if(cntEl) cntEl.textContent=filtered?(entries.length+' / '+allCnt):allCnt;
+  list.innerHTML='';
+  if(!entries.length){
+    list.innerHTML='<div style="text-align:center;padding:32px;color:var(--ipb-text-light);">'
+      + (allCnt?'Geen schadegevallen voor deze filter':'✅ Geen schadegevallen geregistreerd') + '</div>';
+    return;
+  }
+  entries.forEach(function(e){ list.appendChild(rIncident(e[0],e[1])); });
+};
+window.exportIncidentsXlsx=function(){
+  if(!window.XLSX){ alert('Excel-export niet beschikbaar.'); return; }
+  var entries=getFilteredIncidents();
+  if(!entries.length){ alert('Geen schadegevallen om te exporteren.'); return; }
+  var rows=[['Datum & tijd incident','Categorie','Ernst','Status','Locatie','Betrokkene(n)','Omschrijving','Onmiddellijke acties','Gemeld door','Gemeld op']];
+  entries.forEach(function(e){ var v=e[1]||{};
+    rows.push([ incFmtTime(v.incidentTime), ITL[v.type]||v.type||'', IVL[v.severity]||v.severity||'',
+      (ISL[v.status]||v.status||'').replace(/^[🔴🟠🟢]\s*/,''), v.location||'', v.persons||'',
+      v.description||'', v.actions||'', v.reportedBy||'', v.reportedAt||'' ]);
+  });
+  var wb=window.XLSX.utils.book_new();
+  var ws=window.XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:18},{wch:18},{wch:9},{wch:14},{wch:18},{wch:20},{wch:44},{wch:34},{wch:16},{wch:18}];
+  window.XLSX.utils.book_append_sheet(wb,ws,'Schadegevallen');
+  var d=new Date(),p2=function(n){return String(n).padStart(2,'0');};
+  window.XLSX.writeFile(wb,'IPB_Schadegevallen_'+d.getFullYear()+p2(d.getMonth()+1)+p2(d.getDate())+'.xlsx');
+};
+window.exportIncidentsPdf=function(){
+  var entries=getFilteredIncidents();
+  if(!entries.length){ alert('Geen schadegevallen om te exporteren.'); return; }
+  var now=new Date(),p2=function(n){return String(n).padStart(2,'0');};
+  var dstr=p2(now.getDate())+'/'+p2(now.getMonth()+1)+'/'+now.getFullYear()+' '+p2(now.getHours())+':'+p2(now.getMinutes());
+  function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
+  var body=entries.map(function(e){ var v=e[1]||{};
+    return '<tr>'
+      +'<td>'+esc(incFmtTime(v.incidentTime))+'</td>'
+      +'<td>'+esc(ITL[v.type]||v.type||'')+'</td>'
+      +'<td>'+esc(IVL[v.severity]||v.severity||'')+'</td>'
+      +'<td>'+esc((ISL[v.status]||v.status||'').replace(/^[🔴🟠🟢]\s*/,''))+'</td>'
+      +'<td>'+esc(v.location||'')+'</td>'
+      +'<td>'+esc(v.persons||'')+'</td>'
+      +'<td>'+esc(v.description||'')+'</td>'
+      +'<td>'+esc(v.actions||'')+'</td>'
+      +'<td>'+esc(v.reportedBy||'')+'<br><span style="color:#888;font-size:10px;">'+esc(v.reportedAt||'')+'</span></td>'
+      +'</tr>';
+  }).join('');
+  var html='<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>IPB Schadegevallen '+dstr+'</title>'
+    +'<style>body{font-family:"Segoe UI",Arial,sans-serif;color:#222;margin:0;padding:26px;font-size:11.5px;}'
+    +'h1{font-size:17px;margin:0;color:#1E3A6E;} .brand{font-weight:800;font-size:22px;color:#1E3A6E;letter-spacing:1px;}'
+    +'.head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #6DB33F;padding-bottom:8px;margin-bottom:6px;}'
+    +'.sub{color:#666;font-size:12px;} .flt{margin:6px 0 12px;font-size:12px;color:#1E3A6E;font-weight:700;}'
+    +'table{width:100%;border-collapse:collapse;} th,td{border:1px solid #ccc;padding:5px 7px;text-align:left;vertical-align:top;}'
+    +'th{background:#f0f3f8;font-size:10px;text-transform:uppercase;letter-spacing:.3px;} '
+    +'.bar{margin-bottom:14px;} .bar button{font-size:13px;padding:8px 16px;border:none;border-radius:6px;background:#1E3A6E;color:#fff;cursor:pointer;font-weight:700;}'
+    +'@media print{.bar{display:none;}}</style></head><body>'
+    +'<div class="bar"><button onclick="window.print()">🖨️ Afdrukken / Opslaan als PDF</button></div>'
+    +'<div class="head"><div><div class="brand">IPB</div><h1>Schadegevallen / Arbeidsongevallen</h1></div>'
+    +'<div class="sub">Opgesteld: '+dstr+'</div></div>'
+    +'<div class="flt">Filter: '+esc(incActiveFilters())+' — '+entries.length+' schadegeval'+(entries.length>1?'len':'')+'</div>'
+    +'<table><thead><tr><th>Datum & tijd</th><th>Categorie</th><th>Ernst</th><th>Status</th><th>Locatie</th><th>Betrokkene(n)</th><th>Omschrijving</th><th>Acties</th><th>Gemeld door</th></tr></thead><tbody>'+body+'</tbody></table>'
+    +'<scr'+'ipt>window.onload=function(){setTimeout(function(){window.print();},300);};</scr'+'ipt></body></html>';
+  var w=window.open('','_blank');
+  if(!w){ alert('Sta pop-ups toe om het PDF-overzicht te openen.'); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+};
 onValue(ref(db,'incidents'),snap=>{
   state.incidents=snap.val()||{};
-  const list=document.getElementById('list-incidents');list.innerHTML='';
-  const entries=Object.entries(state.incidents);
-  entries.sort((a,b)=>{const order={open:0,followup:1,closed:2};return (order[a[1].status]??0)-(order[b[1].status]??0)||b[0].localeCompare(a[0]);});
-  if(!entries.length)list.innerHTML='<div style="text-align:center;padding:32px;color:var(--ipb-text-light);">✅ Geen schadegevallen geregistreerd</div>';
-  else entries.forEach(([k,v])=>list.appendChild(rIncident(k,v)));
-  document.getElementById('cnt-incidents').textContent=entries.length;
+  window.renderIncidents();
 });
 
 // ARCHIVE
@@ -2463,7 +2592,7 @@ function renderArch(){
       sSec('Veiligheid 🛡',snap.safety,v=>'<div class="sitem"><div><div style="font-weight:600;">'+v.label+'</div><div style="font-size:11px;color:var(--ipb-text-muted);">'+(v.sub||'')+'</div></div><span class="badge '+bc(v.status)+'" style="cursor:default">'+(SL[v.status]||v.status)+'</span></div>')+
       sSec('Machines ⚙',snap.machines,v=>'<div class="sitem"><div><div style="font-weight:600;">'+v.label+'</div><div style="font-size:11px;color:var(--ipb-text-muted);">'+(v.sub||'')+'</div></div><span class="badge '+bc(v.status)+'" style="cursor:default">'+(ML[v.status]||v.status)+'</span></div>')+
       sSec('Mensen 👤',snap.people,v=>'<div class="sitem"><div><div style="font-weight:600;">'+v.name+'</div><div style="font-size:11px;color:var(--ipb-text-muted);">'+(v.role||'')+'</div></div><span class="badge '+bc(v.status)+'" style="cursor:default">'+(PL[v.status]||v.status)+'</span></div>')+
-      sNotes('Berichten afdelingen 📋',snap.dept2)+
+      (snap.deptMessages?sDeptMsgs('Meldingen afdelingen 📋 (met reacties)',snap.deptMessages):sNotes('Berichten afdelingen 📋',snap.dept2))+
       sNotes('Algemene opmerkingen 📝',snap.general)+
       sSec('Technische Dienst 🔧',snap.td,v=>'<div class="sitem"><div><div style="font-weight:600;">'+(v.technician||'TD')+'</div><div style="font-size:11px;color:var(--ipb-text-muted);">'+(v.description||'')+'</div></div><span class="badge '+(TC[v.status]||'st-ok')+'" style="cursor:default">'+(TL[v.status]||v.status)+'</span></div>')+
       sEsc('Escalaties ↑',snap.escalations)+
@@ -2619,9 +2748,17 @@ function sLines(title,data,snapDept,lineHistory,snapMs){
   return out;
 }
 
+function repliesHtml(replies){
+  if(!replies||typeof replies!=='object'||!Object.keys(replies).length) return '';
+  var rows=Object.entries(replies).sort(function(a,b){return a[0].localeCompare(b[0]);}).map(function(e){
+    var r=e[1]||{};
+    return '<div class="sreply">💬 <strong>'+(r.name||'—')+':</strong> '+(r.text||'')+(r.time?' <span style="color:var(--ipb-text-light);font-size:10px;">'+r.time+'</span>':'')+'</div>';
+  }).join('');
+  return '<div class="sreplies">'+rows+'</div>';
+}
 function sSec(title,data,rowFn){
   if(!data||!Object.keys(data).length)return '';
-  return '<div class="ssec"><div class="sstitle">'+title+'</div><div class="sgrid">'+Object.values(data).map(rowFn).join('')+'</div></div>';
+  return '<div class="ssec"><div class="sstitle">'+title+'</div><div class="sgrid">'+Object.values(data).map(function(v){return rowFn(v)+repliesHtml(v.replies);}).join('')+'</div></div>';
 }
 function sNotes(title,data){
   if(!data||!Object.keys(data).length)return '';
@@ -2629,12 +2766,34 @@ function sNotes(title,data){
   const rows=Object.values(data).map(v=>'<div class="sni '+(cfgMap[v.dept]||'')+'">'+
     (v.dept&&DC[v.dept]?'<strong>'+DC[v.dept].label+':</strong> ':'')+
     (v.cat?'<strong>'+v.cat+':</strong> ':'')+
-    (v.text||'')+'</div>').join('');
+    (v.text||'')+'</div>'+repliesHtml(v.replies)).join('');
+  return '<div class="ssec"><div class="sstitle">'+title+'</div>'+rows+'</div>';
+}
+// Meldingen van alle afdelingen (operator + afdeling) mét reacties
+function sDeptMsgs(title,dm){
+  if(!dm||typeof dm!=='object')return '';
+  var DEPT_COLORS={P1:'#1E3A6E',P4:'#6DB33F',Converting:'#E67E00'};
+  var depts=Object.keys(dm).filter(function(d){return dm[d]&&Object.keys(dm[d]).length;});
+  if(!depts.length)return '';
+  var rows='';
+  depts.forEach(function(d){
+    var col=DEPT_COLORS[d]||'#5a6a8a';
+    Object.entries(dm[d]).sort(function(a,b){return a[0].localeCompare(b[0]);}).forEach(function(e){
+      var v=e[1]||{};
+      rows+='<div class="sni" style="border-left-color:'+col+';">'+
+        '<span style="background:'+col+';color:#fff;font-size:10px;padding:1px 7px;border-radius:20px;margin-right:6px;">'+d+'</span>'+
+        (v.by?'<strong>'+v.by+':</strong> ':'')+
+        (v.dept&&DC[v.dept]?'<strong>'+DC[v.dept].label+':</strong> ':'')+
+        (v.cat?'<strong>'+v.cat+':</strong> ':'')+
+        (v.text||'')+'</div>'+repliesHtml(v.replies);
+    });
+  });
+  if(!rows)return '';
   return '<div class="ssec"><div class="sstitle">'+title+'</div>'+rows+'</div>';
 }
 function sEsc(title,data){
   if(!data||!Object.keys(data).length)return '';
-  const rows=Object.values(data).map(v=>'<div class="sni"><strong>'+(v.prio==='urgent'?'⚠ ':v.prio==='warn'?'! ':'')+(v.label||'')+'</strong> — '+(v.detail||'')+'</div>').join('');
+  const rows=Object.values(data).map(v=>'<div class="sni"><strong>'+(v.prio==='urgent'?'⚠ ':v.prio==='warn'?'! ':'')+(v.label||'')+'</strong> — '+(v.detail||'')+'</div>'+repliesHtml(v.replies)).join('');
   return '<div class="ssec"><div class="sstitle">'+title+'</div>'+rows+'</div>';
 }
 function sInc(title,data){
@@ -2659,10 +2818,10 @@ let cType='';
 const MC2={
   safety:{title:'Veiligheidspunt toevoegen',html:'<label class="fl">Gemeld door</label><input class="fi" id="f-by" id="f-by" placeholder="Uw naam"><label class="fl">Omschrijving</label><input class="fi" id="f0" placeholder="bv. LOTO lijn 5"><label class="fl">Toelichting</label><input class="fi" id="f1" placeholder="bv. Onderhoud bezig"><label class="fl">Status</label><select class="fi" id="f2"><option value="ok">✔ OK</option><option value="warn">⚠ Aandacht</option><option value="danger">✖ Kritisch</option></select>'},
   machine:{title:'Machinestatus toevoegen',html:'<label class="fl">Gemeld door</label><input class="fi" id="f-by" placeholder="Uw naam"><label class="fl">Machine / Lijn</label><input class="fi" id="f0" placeholder="bv. Lijn 5"><label class="fl">Toelichting</label><input class="fi" id="f1" placeholder="bv. Normaal bedrijf"><label class="fl">Status</label><select class="fi" id="f2"><option value="ok">Actief</option><option value="warn">Onderhoud</option><option value="danger">Panne</option><option value="off">Uit</option></select>'},
-  people:{title:'Persoon toevoegen',html:'<label class="fl">Gemeld door</label><input class="fi" id="f-by" placeholder="Uw naam"><label class="fl">Naam</label><input class="fi" id="f0" placeholder="Voor- en achternaam"><label class="fl">Functie / Rol</label><input class="fi" id="f1" placeholder="bv. Operator Lijn 2"><label class="fl">Status</label><select class="fi" id="f2"><option value="ok">Aanwezig</option><option value="warn">Verlaat vroeg</option><option value="danger">Afwezig</option></select><label class="fl">Opmerking</label><textarea class="fi" id="f3" placeholder="Optionele opmerking..." style="height:60px;"></textarea>'},
-  dept:{title:'Bericht van afdeling',html:'<label class="fl">Gemeld door</label><input class="fi" id="f-by" placeholder="Uw naam"><label class="fl">Afdeling</label><select class="fi" id="f0"><option value="planning">Planning</option><option value="quality">Kwaliteit</option><option value="warehouse">Magazijn</option><option value="depthead">Afdelingshoofd</option><option value="plantmanager">Plant Manager</option><option value="general">Overige</option></select><label class="fl">Bericht</label><textarea class="fi" id="f1" placeholder="Typ uw bericht..."></textarea>'},
+  people:{title:'Persoon toevoegen',html:'<label class="fl">Gemeld door</label><input class="fi" id="f-by" placeholder="Uw naam"><label class="fl">Naam</label><input class="fi" id="f0" placeholder="Voor- en achternaam"><label class="fl">Functie / Rol</label><input class="fi" id="f1" placeholder="bv. Operator Lijn 2"><label class="fl">Status</label><select class="fi" id="f2"><option value="ok">Aanwezig</option><option value="warn">Verlaat vroeg</option><option value="danger">Afwezig</option></select><label class="fl">Opmerking</label><textarea class="fi" id="f3" placeholder="Optionele opmerking..." style="height:60px;"></textarea><label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;font-weight:600;color:#1a2e5a;cursor:pointer;text-transform:none;letter-spacing:0;"><input type="checkbox" id="f-hr" style="width:15px;height:15px;"> ✉️ Melden aan HR <span style="font-weight:400;color:#8a9abf;font-size:11px;">(mail naar danielle.beirlaen@iplast.be)</span></label>'},
+  dept:{title:'Bericht van afdeling',html:'<label class="fl">Gemeld door</label><input class="fi" id="f-by" placeholder="Uw naam"><label class="fl">Afdeling</label><select class="fi" id="f0"><option value="planning">Planning</option><option value="quality">Kwaliteit</option><option value="warehouse">Magazijn</option><option value="depthead">Afdelingshoofd</option><option value="plantmanager">Plant Manager</option><option value="general">Overige</option></select><label class="fl">Bericht</label><textarea class="fi" id="f1" placeholder="Typ uw bericht..."></textarea><label class="fl" style="margin-top:10px;">Tonen op tijdslijn operatoren <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#8a9abf;font-style:italic;">— vink aan waar het moet verschijnen</span></label><div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px;"><label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;text-transform:none;letter-spacing:0;cursor:pointer;padding:6px 12px;border:2px solid #dde3f0;border-radius:8px;"><input type="checkbox" class="tl-push-cb" value="P1"> P1</label><label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;text-transform:none;letter-spacing:0;cursor:pointer;padding:6px 12px;border:2px solid #dde3f0;border-radius:8px;"><input type="checkbox" class="tl-push-cb" value="P4"> P4</label><label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;text-transform:none;letter-spacing:0;cursor:pointer;padding:6px 12px;border:2px solid #dde3f0;border-radius:8px;"><input type="checkbox" class="tl-push-cb" value="Converting"> Converting</label></div>'},
   escalation:{title:'Escalatie naar afdelingshoofd of directie',html:'<label class="fl">Gemeld door</label><input class="fi" id="f-by" placeholder="Uw naam"><label class="fl">Prioriteit</label><select class="fi" id="f0"><option value="info">ℹ Info</option><option value="warn">⚠ Aandacht</option><option value="urgent">! Urgent</option></select><label class="fl">Titel</label><input class="fi" id="f1" placeholder="Korte omschrijving"><label class="fl">Detail</label><textarea class="fi" id="f2" placeholder="Meer uitleg..."></textarea><label class="fl">Gericht aan</label><select class="fi" id="f3"><option value="colleague">Collega ploegchef</option><option value="management">Afdelingshoofd / Directie</option></select>'},
-  general:{title:'Algemene opmerking',html:'<label class="fl">Gemeld door</label><input class="fi" id="f-by" placeholder="Uw naam"><label class="fl">Categorie</label><input class="fi" id="f0" placeholder="bv. Overdracht nota"><label class="fl">Opmerking</label><textarea class="fi" id="f1" placeholder="Typ uw opmerking..."></textarea>'},
+  general:{title:'Algemene opmerking',html:'<label class="fl">Gemeld door</label><input class="fi" id="f-by" placeholder="Uw naam"><label class="fl">Categorie</label><input class="fi" id="f0" placeholder="bv. Overdracht nota"><label class="fl">Opmerking</label><textarea class="fi" id="f1" placeholder="Typ uw opmerking… (foto: Ctrl+V plakken)" onpaste="handleGeneralPaste(event)"></textarea><div id="gen-photo-preview" style="display:none;position:relative;margin-top:8px;width:fit-content;"><img id="gen-photo-img" onclick="openLightbox(this.src)" style="height:80px;border-radius:8px;border:2px solid #dde3f0;cursor:pointer;display:block;" title="Klik om te vergroten"><button type="button" onclick="removeGeneralPhoto()" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#C62828;color:#fff;border:none;font-size:11px;cursor:pointer;line-height:1;">×</button></div><div id="gen-photo-hint" style="font-size:11px;color:#8a9abf;font-style:italic;margin-top:4px;">📋 Plak een schermafbeelding via Ctrl+V in het opmerkingveld</div><label class="fl" style="margin-top:10px;">Tonen op tijdslijn operatoren <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#8a9abf;font-style:italic;">— optioneel, vink aan waar nodig</span></label><div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px;"><label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;text-transform:none;letter-spacing:0;cursor:pointer;padding:6px 12px;border:2px solid #dde3f0;border-radius:8px;"><input type="checkbox" class="tl-push-cb" value="P1"> P1</label><label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;text-transform:none;letter-spacing:0;cursor:pointer;padding:6px 12px;border:2px solid #dde3f0;border-radius:8px;"><input type="checkbox" class="tl-push-cb" value="P4"> P4</label><label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;text-transform:none;letter-spacing:0;cursor:pointer;padding:6px 12px;border:2px solid #dde3f0;border-radius:8px;"><input type="checkbox" class="tl-push-cb" value="Converting"> Converting</label></div>'},
 
   incident:{title:'Schadegeval / Arbeidsongeval',html:'<label class="fl">Type</label><select class="fi" id="f0"><option value="personal">Lichamelijk letsel</option><option value="material">Materiële schade</option><option value="environmental">Milieu-incident</option><option value="other">Andere</option></select><label class="fl">Ernst</label><select class="fi" id="f1"><option value="low">Licht</option><option value="medium">Matig</option><option value="high">Ernstig</option></select><label class="fl">Datum & tijdstip incident</label><input class="fi" type="datetime-local" id="f2"><label class="fl">Locatie</label><input class="fi" id="f3" placeholder="bv. Lijn 3, magazijn"><label class="fl">Betrokken persoon/personen</label><input class="fi" id="f4" placeholder="Naam(en)"><label class="fl">Omschrijving</label><textarea class="fi" id="f5" placeholder="Wat is er gebeurd?"></textarea><label class="fl">Onmiddellijke acties ondernomen</label><textarea class="fi" id="f6" placeholder="Welke maatregelen werden direct genomen?"></textarea><label class="fl">Status opvolging</label><select class="fi" id="f7"><option value="open">Open</option><option value="followup">In opvolging</option><option value="closed">Afgesloten</option></select>'}
 };
@@ -2671,6 +2830,12 @@ window.openModal=function(type){
   cType=type;const c=MC2[type];
   document.getElementById('modal-title').textContent=c.title;
   document.getElementById('modal-body').innerHTML=c.html;
+  if(type==='dept' || type==='general'){
+    document.querySelectorAll('.tl-push-cb').forEach(function(cb){
+      cb.onchange=function(){ var l=cb.closest('label'); if(l){ l.style.borderColor=cb.checked?'#1E3A6E':'#dde3f0'; l.style.background=cb.checked?'#eef3fc':'#fff'; } };
+    });
+    if(type==='general'){ _generalPhotoBase64=null; }
+  }
   const sb=document.getElementById('msb');sb.textContent='Opslaan';sb.onclick=saveItem;
   document.getElementById('modal-bg').classList.add('open');
   // Auto-fill name field vanuit aangemelde sessie
@@ -2684,16 +2849,68 @@ window.openModal=function(type){
   document.getElementById('f0').focus();
 };
 window.closeModal=function(){document.getElementById('modal-bg').classList.remove('open');};
+function sendHrMail(rec){
+  const PLmap={ok:'Aanwezig',warn:'Verlaat vroeg',danger:'Afwezig'};
+  const statusLbl=PLmap[rec.status]||rec.status||'';
+  const subject='HR-melding ploegbord — '+(rec.name||'')+' ('+dept+')';
+  const lines=[
+    'Er werd een personeelsmelding gemarkeerd voor HR via het ploegbord.',
+    '',
+    'Naam: '+(rec.name||'—'),
+    'Functie/rol: '+(rec.role||'—'),
+    'Status: '+statusLbl,
+    'Opmerking: '+(rec.note||'—'),
+    'Afdeling: '+dept,
+    'Gemeld door: '+(rec.by||'—'),
+    'Tijdstip: '+(rec.time||ts())
+  ];
+  const url='mailto:danielle.beirlaen@iplast.be'
+    +'?subject='+encodeURIComponent(subject)
+    +'&body='+encodeURIComponent(lines.join('\n'));
+  try{
+    var a=document.createElement('a'); a.href=url; a.style.display='none';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  }catch(e){ window.location.href=url; }
+}
 window.saveItem=function(){
   const g=id=>(document.getElementById(id)||{}).value||'';
   const t=tt();
   const by=getCurrentUserName()||(document.getElementById('f-by')||{}).value||'';
   if(cType==='safety')     push(ref(db,dp('safety')),    {label:g('f0'),sub:g('f1'),status:g('f2'),by:by,time:ts()});
   if(cType==='machine')    push(ref(db,dp('machines')),  {label:g('f0'),sub:g('f1'),status:g('f2'),by:by,time:ts()});
-  if(cType==='people')     push(ref(db,dp('people')),    {name:g('f0'),role:g('f1'),status:g('f2'),by:by,note:g('f3'),time:ts()});
-  if(cType==='dept')       push(ref(db,dp('dept')),      {dept:g('f0'),text:g('f1'),time:ts(),by:by,ts:new Date().toISOString()});
+  if(cType==='people'){
+    const hr = !!((document.getElementById('f-hr')||{}).checked);
+    const rec = {name:g('f0'),role:g('f1'),status:g('f2'),by:by,note:g('f3'),time:ts(),hrNotify:hr};
+    push(ref(db,dp('people')), rec);
+    if(hr) sendHrMail(rec);
+  }
+  if(cType==='dept'){
+    const _now=new Date(); const _pp=n=>String(n).padStart(2,'0');
+    const _dateStr=_pp(_now.getDate())+'/'+_pp(_now.getMonth()+1)+'/'+_now.getFullYear();
+    const _timeStr=_pp(_now.getHours())+':'+_pp(_now.getMinutes());
+    const melding={dept:g('f0'),text:g('f1'),by:by,date:_dateStr,time:_timeStr,ts:_now.toISOString()};
+    const targets=Array.from(document.querySelectorAll('.tl-push-cb:checked')).map(function(cb){return cb.value;});
+    if(targets.length){ targets.forEach(function(d){ push(ref(db,d+'/dept'),melding); }); }
+    else { push(ref(db,dp('dept')),melding); }
+  }
   if(cType==='escalation') push(ref(db,dp('escalations')),{prio:g('f0'),label:g('f1'),detail:g('f2'),to:g('f3'),time:t,by:by});
-  if(cType==='general')    push(ref(db,dp('general')),   {cat:g('f0'),text:g('f1'),time:t,by:by});
+  if(cType==='general'){
+    const _photo=_generalPhotoBase64;
+    const genRec={cat:g('f0'),text:g('f1'),time:t,by:by};
+    if(_photo) genRec.photo={data:_photo};
+    push(ref(db,dp('general')), genRec);
+    const gTargets=Array.from(document.querySelectorAll('.tl-push-cb:checked')).map(function(cb){return cb.value;});
+    if(gTargets.length){
+      const _now=new Date(); const _pp=n=>String(n).padStart(2,'0');
+      const _dateStr=_pp(_now.getDate())+'/'+_pp(_now.getMonth()+1)+'/'+_now.getFullYear();
+      const _timeStr=_pp(_now.getHours())+':'+_pp(_now.getMinutes());
+      const _txt=g('f0')?(g('f0')+': '+g('f1')):g('f1');
+      const melding={dept:'general',text:_txt,by:by,date:_dateStr,time:_timeStr,ts:_now.toISOString()};
+      if(_photo) melding.photo={data:_photo};
+      gTargets.forEach(function(d){ push(ref(db,d+'/dept'),melding); });
+    }
+    _generalPhotoBase64=null;
+  }
 
   if(cType==='incident')   push(ref(db,'incidents'),     {type:g('f0'),severity:g('f1'),incidentTime:g('f2'),location:g('f3'),persons:g('f4'),description:g('f5'),actions:g('f6'),status:g('f7'),reportedAt:ts(),reportedBy:by});
   closeModal();showToast('Opgeslagen ✓');
@@ -3260,8 +3477,32 @@ window.exportLineIncidentsExcel = function() {
 };
 
 // ===== KLACHT / AFKEUR FORMULIER =====
-window.openComplaintForm = function() {
-  // Set today's date
+var _editComplaintKey = null;
+
+function populateChiefCheckboxes(selected){
+  var wrap=document.getElementById('cl-chiefs'); if(!wrap) return;
+  selected=selected||[];
+  var chiefs=(PERSONNEL['Ploegchef']||[]).map(function(p){return p.name;});
+  if(!chiefs.length){
+    var seen={};
+    ['P1','P4','Converting','Algemeen'].forEach(function(d){(PERSONNEL[d]||[]).forEach(function(p){ if(!seen[p.name]){seen[p.name]=1;chiefs.push(p.name);} });});
+  }
+  if(!chiefs.length){ wrap.innerHTML='<span style="font-size:12px;color:#8a9abf;font-style:italic;">Geen ploegchefs bekend</span>'; return; }
+  wrap.innerHTML='';
+  chiefs.forEach(function(name){
+    var lbl=document.createElement('label');
+    lbl.style.cssText='display:flex;align-items:center;gap:6px;cursor:pointer;padding:6px 12px;border-radius:8px;border:2px solid #dde3f0;font-size:12px;font-weight:700;';
+    var cb=document.createElement('input'); cb.type='checkbox'; cb.className='cl-chief-cb'; cb.value=name;
+    if(selected.indexOf(name)>=0){ cb.checked=true; lbl.style.borderColor='#8b1a1a'; lbl.style.background='#fdf0f0'; }
+    cb.onchange=function(){ lbl.style.borderColor=cb.checked?'#8b1a1a':'#dde3f0'; lbl.style.background=cb.checked?'#fdf0f0':'#fff'; };
+    lbl.appendChild(cb); lbl.appendChild(document.createTextNode(' '+name));
+    wrap.appendChild(lbl);
+  });
+}
+
+window.openComplaintForm = function(editKey) {
+  _editComplaintKey = editKey || null;
+  const isEdit = !!_editComplaintKey;
   const today = new Date();
   const p2 = n => String(n).padStart(2,'0');
   document.getElementById('cl-datum').value =
@@ -3269,13 +3510,13 @@ window.openComplaintForm = function() {
 
   // Reset alle dept-vinkjes en vink huidige afdeling aan als standaard
   document.querySelectorAll('.cl-dept-cb').forEach(function(cb){ cb.checked = false; });
-  const deptMap = {'Ploegchef':'P1'}; // Ploegchefs behoren tot P1
+  const deptMap = {'Ploegchef':'P1'};
   const myDept = deptMap[dept] || dept;
   const defCb = document.querySelector('.cl-dept-cb[value="'+myDept+'"]');
   if(defCb) defCb.checked = true;
   updateComplaintMachines();
 
-  // Fill operator checkboxes from PERSONNEL (all depts except Ploegchef)
+  // Operator-checkboxen uit PERSONNEL (alle afdelingen behalve Ploegchef)
   const opsDiv = document.getElementById('cl-operators');
   opsDiv.innerHTML = '';
   const allDepts = ['P1','P4','Converting','Algemeen'];
@@ -3291,25 +3532,97 @@ window.openComplaintForm = function() {
     });
   });
 
-  // Reset alle velden
+  // Reset operator-selectie + extra namen
+  _selectedOps = [];
+  renderOpTags();
+  var extraWrap=document.getElementById('cl-extra-names'); if(extraWrap) extraWrap.innerHTML='';
+
+  // Reset velden
   document.getElementById('cl-split-wrap').style.display='none';
   document.getElementById('cl-qty').value='';
   document.getElementById('cl-po').value='';
   document.getElementById('cl-desc').value='';
   document.getElementById('cl-machine').value='';
+  var numEl=document.getElementById('cl-number'); if(numEl) numEl.value='';
+  var redenEl=document.getElementById('cl-reden'); if(redenEl) redenEl.value='';
+  var maatEl=document.getElementById('cl-maatregel'); if(maatEl) maatEl.value='';
   document.querySelectorAll('#cl-operators input[type=checkbox]').forEach(function(cb){cb.checked=false;});
-  document.getElementById('complaint-modal').style.display='flex';
+  // type + modus terug op standaard
+  var ctI=document.getElementById('ct-intern'); if(ctI) ctI.checked=true;
+  var cmK=document.getElementById('cm-klacht'); if(cmK) cmK.checked=true;
+  if(window.updateComplaintTypeStyle) updateComplaintTypeStyle();
+  if(window.updateComplaintMode) updateComplaintMode();
 
-  // Toon beheervelden enkel voor Algemeen of Ploegchef
+  // Ploegchef-vinkjes
+  populateChiefCheckboxes(isEdit && complaintsData[_editComplaintKey] ? (complaintsData[_editComplaintKey].chiefs||[]) : []);
+
+  // Titel + knoptekst
+  var titleEl=document.getElementById('complaint-modal-title');
+  var btnEl=document.getElementById('complaint-save-btn');
+  if(titleEl) titleEl.textContent = isEdit ? '✏️ Klacht bewerken' : '⚠️ Interne / Externe Klacht registreren';
+  if(btnEl) btnEl.textContent = isEdit ? 'Wijzigingen opslaan' : 'Klacht opslaan';
+
+  // Beheervelden enkel voor Algemeen of Ploegchef
   const _s = getSession();
   const _canEdit = _s && (_s.dept === 'Algemeen' || _s.dept === 'Ploegchef');
   const _rf = document.getElementById('cl-restricted-fields');
   if(_rf) _rf.style.display = _canEdit ? 'block' : 'none';
-  // Velden readonly als niet bevoegd (extra veiligheid)
   ['cl-reden','cl-maatregel'].forEach(function(id){
     const el = document.getElementById(id);
     if(el) el.readOnly = !_canEdit;
   });
+
+  // ── Bestaande klacht inladen bij bewerken ──────────────────────────────────
+  if(isEdit && complaintsData[_editComplaintKey]){
+    const e = complaintsData[_editComplaintKey];
+    // type
+    var tEl=document.getElementById(e.type==='extern'?'ct-extern':'ct-intern'); if(tEl) tEl.checked=true;
+    if(window.updateComplaintTypeStyle) updateComplaintTypeStyle();
+    // modus (klacht/afwijking)
+    if(e.mode){ var mEl=document.getElementById(e.mode==='afwijking'?'cm-afwijking':'cm-klacht'); if(mEl) mEl.checked=true; if(window.updateComplaintMode) updateComplaintMode(); }
+    // nummer
+    if(numEl) numEl.value=e.number||'';
+    // datum (DD/MM/YYYY -> yyyy-mm-dd)
+    if(e.datum){ var dp=e.datum.split('/'); if(dp.length===3) document.getElementById('cl-datum').value=dp[2]+'-'+dp[1]+'-'+dp[0]; }
+    document.getElementById('cl-po').value=e.po||'';
+    // afdelingen
+    document.querySelectorAll('.cl-dept-cb').forEach(function(cb){ cb.checked=(e.targetDepts||[]).indexOf(cb.value)>=0; });
+    updateComplaintMachines();
+    document.getElementById('cl-machine').value=e.machine||'';
+    document.getElementById('cl-desc').value=e.description||'';
+    document.getElementById('cl-qty').value=e.qty||'';
+    document.getElementById('cl-unit').value=e.unit||'kg';
+    if(redenEl) redenEl.value=e.reden||'';
+    if(maatEl) maatEl.value=e.maatregel||'';
+    // operators terugzetten (checkbox aanmaken indien onbekend, dan taggen)
+    (e.operators||[]).forEach(function(op){
+      if(!Array.from(document.querySelectorAll('#cl-operators input[type=checkbox]')).some(function(c){return c.value===op.name;})){
+        var lab=document.createElement('label');
+        lab.style.cssText='display:flex;align-items:center;gap:7px;cursor:pointer;padding:4px 6px;border-radius:6px;font-size:12px;';
+        lab.innerHTML='<input type="checkbox" value="'+op.name+'" onchange="updateComplaintSplit()" style="width:14px;height:14px;"> '+op.name;
+        opsDiv.appendChild(lab);
+      }
+      addOpTag(op.name,false);
+    });
+    updateComplaintSplit();
+    // verdeling terugzetten volgens opgeslagen porties
+    var checkedCbs=Array.from(document.querySelectorAll('#cl-operators input[type=checkbox]:checked'));
+    checkedCbs.forEach(function(cb,i){
+      var match=(e.operators||[]).find(function(op){return op.name===cb.value;});
+      var si=document.getElementById('split-'+i);
+      if(match&&si) si.value=match.qty;
+    });
+    // extra namen terugzetten
+    (e.extraNames||[]).forEach(function(nm){
+      var w=document.getElementById('cl-extra-names'); if(!w) return;
+      var tag=document.createElement('span');
+      tag.style.cssText='display:inline-flex;align-items:center;gap:5px;background:#eef2ff;border:1.5px solid #b0c0e8;border-radius:20px;padding:4px 10px 4px 12px;font-size:12px;font-weight:700;color:#1E3A6E;';
+      tag.innerHTML=nm+'<button onclick="this.parentElement.remove()" style="background:none;border:none;cursor:pointer;color:#8a9abf;font-size:14px;line-height:1;padding:0 0 0 2px;">×</button>';
+      w.appendChild(tag);
+    });
+  }
+
+  document.getElementById('complaint-modal').style.display='flex';
 };
 
 window.updateComplaintMachines = function() {
@@ -3346,6 +3659,7 @@ window.closeComplaintForm = function() {
   document.getElementById('complaint-modal').style.display='none';
   const enWrap=document.getElementById('cl-extra-names');if(enWrap)enWrap.innerHTML='';
   window.removeComplaintPhoto&&window.removeComplaintPhoto();
+  _editComplaintKey = null;
 };
 
 window.updateComplaintSplit = function() {
@@ -3371,6 +3685,7 @@ window.updateComplaintSplit = function() {
     rows.appendChild(row);
   });
 };
+window.updateQtySplit = window.updateComplaintSplit;   // alias (werd aangeroepen maar was niet gedefinieerd)
 
 
 // ===== KLACHT NOTIFICATIES (BALLONNEN) =====
@@ -3479,6 +3794,15 @@ function renderKlachtBallonnen(entries) {
       qty.innerHTML='<span style="background:#C6282820;color:#C62828;font-size:12px;font-weight:800;padding:3px 10px;border-radius:20px;">'+(v.qty||0)+' '+(v.unit||'')+'</span>'
         +'<span style="font-size:11px;color:#8a9abf;">door '+(v.registeredBy||'—')+'</span>';
       body.appendChild(qty);
+
+      // Ploegchef(s) die moeten reageren
+      if(v.chiefs && v.chiefs.length){
+        const ch = document.createElement('div');
+        ch.style.cssText='display:flex;flex-wrap:wrap;gap:5px;align-items:center;background:rgba(30,58,110,.07);border:1px solid rgba(30,58,110,.20);border-radius:8px;padding:7px 9px;margin-bottom:8px;';
+        ch.innerHTML='<span style="font-size:11px;font-weight:800;color:#1E3A6E;width:100%;">👤 Reactie gevraagd van:</span>'
+          + v.chiefs.map(function(c){ return '<span style="background:#1E3A6E;color:#fff;font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;">'+c+'</span>'; }).join('');
+        body.appendChild(ch);
+      }
 
       // Operatoren verdeling
       if(v.operators&&v.operators.length){
@@ -3715,6 +4039,37 @@ window.removeComplaintPhoto = function() {
   if(hint) hint.style.display = 'inline';
 };
 
+var _generalPhotoBase64 = null;
+window.handleGeneralPaste = function(e){
+  const items=(e.clipboardData||e.originalEvent.clipboardData).items;
+  for(let i=0;i<items.length;i++){
+    if(items[i].type.indexOf('image')!==-1){
+      e.preventDefault();
+      const file=items[i].getAsFile();
+      const reader=new FileReader();
+      reader.onload=function(ev){ showGeneralPhotoPreview(ev.target.result); };
+      reader.readAsDataURL(file);
+      return;
+    }
+  }
+};
+function showGeneralPhotoPreview(dataUrl){
+  _generalPhotoBase64=dataUrl;
+  const img=document.getElementById('gen-photo-img');
+  const preview=document.getElementById('gen-photo-preview');
+  const hint=document.getElementById('gen-photo-hint');
+  if(img) img.src=dataUrl;
+  if(preview) preview.style.display='block';
+  if(hint) hint.style.display='none';
+}
+window.removeGeneralPhoto=function(){
+  _generalPhotoBase64=null;
+  const preview=document.getElementById('gen-photo-preview');
+  const hint=document.getElementById('gen-photo-hint');
+  if(preview) preview.style.display='none';
+  if(hint) hint.style.display='block';
+};
+
 window.openPhotoFull = function() {
   const overlay = document.getElementById('cl-photo-overlay');
   document.getElementById('cl-photo-full').src = document.getElementById('cl-photo-img').src;
@@ -3898,7 +4253,16 @@ window.saveComplaint = function() {
   const qty = parseFloat(document.getElementById('cl-qty').value)||0;
   const unit = document.getElementById('cl-unit').value;
   const type = document.querySelector('input[name=complaint-type]:checked').value;
+  const modeEl = document.querySelector('input[name=cl-mode]:checked');
+  const mode = modeEl ? modeEl.value : 'klacht';
   const targetDepts = Array.from(document.querySelectorAll('.cl-dept-cb:checked')).map(function(cb){return cb.value;});
+  const chiefs = Array.from(document.querySelectorAll('.cl-chief-cb:checked')).map(function(cb){return cb.value;});
+  const numberEl = document.getElementById('cl-number');
+  const number = numberEl ? numberEl.value.trim() : '';
+  const redenEl = document.getElementById('cl-reden');
+  const maatEl = document.getElementById('cl-maatregel');
+  const reden = redenEl ? redenEl.value.trim() : '';
+  const maatregel = maatEl ? maatEl.value.trim() : '';
 
   if(!datum) { alert('Vul een datum in.'); return; }
   if(!machine) { alert('Kies een machine.'); return; }
@@ -3919,7 +4283,10 @@ window.saveComplaint = function() {
 
   const entry = {
     type: type,
+    mode: mode,
+    number: number,
     targetDepts: targetDepts,
+    chiefs: chiefs,
     datum: datumStr,
     po: po,
     machine: machine,
@@ -3927,11 +4294,30 @@ window.saveComplaint = function() {
     qty: qty,
     unit: unit,
     operators: operators,
-    registeredBy: getCurrentUserName()||'—',
-    registeredAt: new Date().toISOString(),
+    extraNames: extraNames,
+    reden: reden,
+    maatregel: maatregel,
     dept: dept
   };
 
+  if(_editComplaintKey && complaintsData[_editComplaintKey]){
+    // Bewerken: oorspronkelijke registratie behouden, wijziging loggen
+    const orig = complaintsData[_editComplaintKey];
+    entry.registeredBy = orig.registeredBy || (getCurrentUserName()||'—');
+    entry.registeredAt = orig.registeredAt || new Date().toISOString();
+    if(orig.photo) entry.photo = orig.photo;
+    entry.updatedBy = getCurrentUserName()||'—';
+    entry.updatedAt = new Date().toISOString();
+    update(ref(db, 'quality-complaints-global/'+_editComplaintKey), entry).then(function() {
+      _editComplaintKey = null;
+      closeComplaintForm();
+      showToast('Klacht bijgewerkt ✓');
+    }).catch(function(err) { alert('Fout bij opslaan: '+err.message); });
+    return;
+  }
+
+  entry.registeredBy = getCurrentUserName()||'—';
+  entry.registeredAt = new Date().toISOString();
   // Sla op in EEN enkel globaal pad — archief, ballonnen en verwijdering lopen automatisch synchroon
   push(ref(db, 'quality-complaints-global'), entry).then(function() {
     closeComplaintForm();
@@ -5116,20 +5502,45 @@ window.renderComplaints = function() {
         }).join('') + '</div>';
     }
 
+    // Ploegchef(s) die moeten reageren
+    let chiefsHtml = '';
+    if(e.chiefs && e.chiefs.length) {
+      chiefsHtml = '<div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-top:8px;">'
+        + '<span style="font-size:11px;font-weight:700;color:#5a6a8a;">👤 Reactie door:</span>'
+        + e.chiefs.map(function(c){
+            return '<span style="background:#1E3A6E;color:#fff;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;">'+c+'</span>';
+          }).join('') + '</div>';
+    }
+    // Reden / maatregel (indien ingevuld)
+    let mgmtHtml = '';
+    if(e.reden || e.maatregel){
+      mgmtHtml = '<div style="margin-top:8px;padding:8px 10px;background:#f8f9ff;border-radius:8px;border-left:3px solid #b0c0e8;font-size:12px;color:#3a4a6a;">'
+        + (e.reden?'<div><strong>Reden:</strong> '+e.reden+'</div>':'')
+        + (e.maatregel?'<div style="margin-top:2px;"><strong>Maatregel:</strong> '+e.maatregel+'</div>':'')
+        + '</div>';
+    }
+    var updatedHtml = e.updatedAt ? '<span style="font-size:10px;color:#aab2c2;font-style:italic;margin-left:6px;">(bijgewerkt'+(e.updatedBy?' door '+e.updatedBy:'')+')</span>' : '';
+
     const card = document.createElement('div');
     card.style.cssText='background:#fff;border:1.5px solid '+col+'40;border-radius:10px;padding:14px 16px;margin-bottom:10px;position:relative;';
     card.innerHTML=
-      '<div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;">'
+      '<div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;padding-right:56px;">'
       +'<span style="background:'+col+';color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;">'+(isExtern?'EXTERN':'INTERN')+'</span>'
+      +(e.number?'<span style="font-size:12px;font-weight:800;color:'+col+';">'+e.number+'</span>':'')
       +'<span style="font-size:12px;color:#5a6a8a;">📅 '+(e.datum||'—')+'</span>'
       +(e.po?'<span style="font-size:12px;color:#5a6a8a;font-weight:700;">PO: '+e.po+'</span>':'')
       +'<span style="font-size:12px;color:#5a6a8a;">⚙ '+mach+'</span>'
       +'<span style="font-size:12px;font-weight:700;color:'+col+';">'+(e.qty||0)+' '+(e.unit||'')+'</span>'
-      +'<span style="font-size:11px;color:#8a9abf;margin-left:auto;">door '+(e.registeredBy||'—')+'</span>'
+      +'<span style="font-size:11px;color:#8a9abf;margin-left:auto;">door '+(e.registeredBy||'—')+updatedHtml+'</span>'
       +'</div>'
       +'<div style="font-size:13px;color:#1a2e5a;margin-top:8px;font-weight:600;">'+(e.description||'—')+'</div>'
       +opsHtml
-      +'<button onclick="deleteComplaint(this)" data-key="'+e._key+'" style="position:absolute;top:8px;right:10px;background:none;border:none;cursor:pointer;font-size:14px;color:#ccc;">🗑</button>';
+      +chiefsHtml
+      +mgmtHtml
+      +'<div style="position:absolute;top:8px;right:10px;display:flex;gap:8px;">'
+        +'<button onclick="openComplaintForm(\''+e._key+'\')" title="Openen / bewerken" style="background:none;border:none;cursor:pointer;font-size:14px;color:#1E3A6E;">✏️</button>'
+        +'<button onclick="deleteComplaint(this)" data-key="'+e._key+'" title="Verwijderen" style="background:none;border:none;cursor:pointer;font-size:14px;color:#ccc;">🗑</button>'
+      +'</div>';
     list.appendChild(card);
   });
 };
@@ -5659,12 +6070,12 @@ document.addEventListener('keydown', function(e) {
 
 <!-- KLACHT / AFKEUR FORMULIER -->
 <div id="complaint-modal" style="display:none;position:fixed;inset:0;background:rgba(15,30,61,.55);z-index:400;align-items:center;justify-content:center;overflow-y:auto;">
-  <div style="background:#fff;border-radius:16px;width:min(640px,96vw);margin:20px auto;box-shadow:0 8px 40px rgba(0,0,0,.25);">
-    <div style="background:#8b1a1a;color:#fff;padding:16px 22px;border-radius:16px 16px 0 0;display:flex;align-items:center;justify-content:space-between;">
-      <span style="font-size:16px;font-weight:800;">⚠️ Interne / Externe Klacht registreren</span>
+  <div style="background:#fff;border-radius:16px;width:min(640px,96vw);margin:20px auto;box-shadow:0 8px 40px rgba(0,0,0,.25);max-height:calc(100vh - 40px);display:flex;flex-direction:column;">
+    <div style="background:#8b1a1a;color:#fff;padding:16px 22px;border-radius:16px 16px 0 0;display:flex;align-items:center;justify-content:space-between;flex:0 0 auto;">
+      <span id="complaint-modal-title" style="font-size:16px;font-weight:800;">⚠️ Interne / Externe Klacht registreren</span>
       <button onclick="closeComplaintForm()" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;line-height:1;">×</button>
     </div>
-    <div style="padding:22px;display:flex;flex-direction:column;gap:14px;">
+    <div style="padding:22px;display:flex;flex-direction:column;gap:14px;overflow-y:auto;flex:1 1 auto;min-height:0;">
 
       <!-- Klacht / Afwijking toggle + Klachtnummer -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding-bottom:14px;border-bottom:1.5px solid #f0e8e8;">
@@ -5719,6 +6130,14 @@ document.addEventListener('keydown', function(e) {
               <input type="checkbox" class="cl-dept-cb" value="Magazijn" onchange="updateComplaintMachines()"> Magazijn
             </label>
           </div>
+        </div>
+      </div>
+
+      <!-- Ploegchef(s) die moeten reageren -->
+      <div>
+        <label style="font-size:11px;font-weight:700;color:#5a6a8a;text-transform:uppercase;letter-spacing:.05em;">Ploegchef(s) die moeten reageren <span style="font-weight:400;color:#8a9abf;font-style:italic;">— meerdere mogelijk</span></label>
+        <div id="cl-chiefs" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">
+          <span style="font-size:12px;color:#8a9abf;font-style:italic;">Laden…</span>
         </div>
       </div>
 
@@ -5850,7 +6269,7 @@ document.addEventListener('keydown', function(e) {
       <!-- Submit -->
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px;">
         <button onclick="closeComplaintForm()" style="padding:10px 20px;border:1.5px solid #dde3f0;border-radius:8px;background:#fff;font-size:13px;cursor:pointer;font-weight:700;color:#5a6a8a;">Annuleren</button>
-        <button onclick="saveComplaint()" style="padding:10px 24px;background:#8b1a1a;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;">Klacht opslaan</button>
+        <button id="complaint-save-btn" onclick="saveComplaint()" style="padding:10px 24px;background:#8b1a1a;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;">Klacht opslaan</button>
       </div>
     </div>
   </div>
