@@ -3033,6 +3033,31 @@ function buildMiniBar(line) {
 }
 
 
+/* ── Ploegwissel-markering ─────────────────────────────────────────────
+   Een lijn is "niet toegewezen" als de actuele status vóór de laatste
+   ploegwissel is ingesteld én niet 'geen' is. Ploegwissels:
+   ma–vr 05:00/13:00/21:00, za–zo 05:00/17:00. */
+function pw_lastShiftChangeBefore(ms) {
+  var d = new Date(ms);
+  for (var back = 0; back < 2; back++) {
+    var day = d.getDay();
+    var changes = (day === 0 || day === 6) ? [5*60, 17*60] : [5*60, 13*60, 21*60];
+    var tot = (back === 0) ? (d.getHours()*60 + d.getMinutes()) : 24*60;
+    for (var i = changes.length - 1; i >= 0; i--) {
+      if (changes[i] <= tot) {
+        var r = new Date(d);
+        r.setHours(Math.floor(changes[i]/60), changes[i]%60, 0, 0);
+        return r.getTime();
+      }
+    }
+    d = new Date(d.getTime() - 86400000);
+  }
+  return ms;
+}
+function pw_nietToegewezen(status, entryMs) {
+  return !!(status && status !== 'geen' && entryMs && entryMs < pw_lastShiftChangeBefore(Date.now()));
+}
+
 function renderLines() {
   const body = document.getElementById('lines-body');
   if (!body) return;
@@ -3058,6 +3083,10 @@ function renderLines() {
         break;
       }
     }
+    // Ploegwissel: tijdstip waarop de actuele status werd ingesteld
+    const pwEntryMs = (curEntry && curEntry.ms) ? curEntry.ms
+                    : (opItem && opItem._ms) ? opItem._ms : null;
+    const pwUnassigned = pw_nietToegewezen(st, pwEntryMs);
     const stColor = st ? (OP_STATUS_COLORS[st]||'#8a9abf') : '#8a9abf';
     const stLabel = st ? (OP_STATUS_LABELS[st]||st) : 'Geen melding';
     // Operatornaam: gebruik de entry die ook de status bepaalt, met operator-status als fallback
@@ -3079,8 +3108,12 @@ function renderLines() {
     const div = document.createElement('div');
     div.id = 'lt-' + line;
     div.style.cssText = 'border-radius:10px;border:2px solid '+stColor+';background:'+stColor+'18;padding:10px 12px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;';
-    div.onmouseenter = function(){ this.style.background=stColor+'30'; };
-    div.onmouseleave = function(){ this.style.background=stColor+'18'; };
+    if (pwUnassigned) {
+      div.style.backgroundImage = 'repeating-linear-gradient(45deg, rgba(255,255,255,.55) 0 4px, transparent 4px 8px)';
+      div.title = 'geen toewijzing na ploegwissel';
+    }
+    div.onmouseenter = function(){ this.style.backgroundColor=stColor+'30'; };
+    div.onmouseleave = function(){ this.style.backgroundColor=stColor+'18'; };
 
     // Top row: line name + status badge
     const topRow = document.createElement('div');
@@ -3149,6 +3182,12 @@ function renderLines() {
 
     div.appendChild(topRow);
     div.appendChild(opRow);
+    if (pwUnassigned) {
+      const pwCap = document.createElement('div');
+      pwCap.style.cssText = 'font-size:9px;font-weight:800;color:#c85a00;margin:-2px 0 5px;display:flex;align-items:center;gap:3px;';
+      pwCap.textContent = '⚠ Geen toewijzing na ploegwissel';
+      div.appendChild(pwCap);
+    }
     if (line === 'IDE') {
       const ideCfg = ideConfigData || {};
       // Zoek meest recente historiek-entry (<=nu) met een toerentalwaarde — zelfde bron als operatorspagina
