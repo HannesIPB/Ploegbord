@@ -2184,10 +2184,11 @@ function rTD(key,item){
 
 function bindOne(sub,listId,cntId,renderFn){
   return onValue(ref(db,dp(sub)),snap=>{
-    const list=document.getElementById(listId);list.innerHTML='';
     const data=snap.val()||{};state[sub]=data;
-    Object.entries(data).forEach(([k,v])=>list.appendChild(renderFn(k,v)));
-    document.getElementById(cntId).textContent=Object.keys(data).length;
+    const list=document.getElementById(listId);
+    if(list){list.innerHTML='';Object.entries(data).forEach(([k,v])=>list.appendChild(renderFn(k,v)));}
+    const cnt=document.getElementById(cntId);
+    if(cnt)cnt.textContent=Object.keys(data).length;
   });
 }
 
@@ -2841,7 +2842,7 @@ function buildMiniBar(line) {
   }
 
   // Nu-markering (vast op TL_PAST_H / TL_TOTAL_H)
-  const nowPct = (TL_SCROLL_PAST_H / totalH * 100).toFixed(1);
+  const nowPct = (TL_PAST_H / TL_TOTAL_H * 100).toFixed(1);
   const marker = document.createElement('div');
   marker.style.cssText = 'position:absolute;top:0;bottom:0;left:'+nowPct+'%;width:1px;background:#e24b4a;z-index:2;pointer-events:none;';
   bar.appendChild(marker);
@@ -2952,7 +2953,9 @@ function renderLines() {
     kgRow.appendChild(kgUnit);
 
     // Mini timeline
-    const miniBar = buildMiniBar(line);
+    let miniBar;
+    try { miniBar = buildMiniBar(line); }
+    catch (e) { console.error('buildMiniBar faalde voor', line, e); miniBar = document.createElement('div'); }
 
     // Hour labels for mini bar (just 00, 06, 12, 18, 24)
     const lblRow = document.createElement('div');
