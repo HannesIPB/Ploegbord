@@ -1153,6 +1153,27 @@ const AUTO_LOGOUT_DEPTS = ['P1','Ploegchef','P4','Converting'];
 // Bereken het tijdstip van de eerstvolgende ploegwissel vanaf 'now'
 // Weekdagen (ma-vr): 05:00 | 13:00 | 21:00
 // Weekend (za-zo):   05:00 | 17:00
+// Tolerantie: registratie binnen GRACE_MS voor ploegwissel telt als nieuwe ploeg
+const SHIFT_GRACE_MS = 20 * 60 * 1000; // 20 minuten
+
+function lastShiftChangeBefore(ms) {
+  const d = new Date(ms);
+  for (let back = 0; back < 2; back++) {
+    const day = d.getDay();
+    const changes = (day === 0 || day === 6) ? [5*60, 17*60] : [5*60, 13*60, 21*60];
+    const tot = (back === 0) ? (d.getHours()*60 + d.getMinutes()) : 24*60;
+    for (let i = changes.length - 1; i >= 0; i--) {
+      if (changes[i] <= tot) {
+        const r = new Date(d);
+        r.setHours(Math.floor(changes[i]/60), changes[i]%60, 0, 0);
+        return r.getTime();
+      }
+    }
+    d.setDate(d.getDate() - 1);
+  }
+  return ms;
+}
+
 function nextShiftChange(now) {
   const d = new Date(now);
   const day = d.getDay(); // 0=zo,1=ma,...,6=za
@@ -2566,7 +2587,18 @@ function sLines(title,data,snapDept,lineHistory,snapMs){
         const bg=st?(OP_COLORS[st]||'#e8ecf5'):'#f4f6fb';
         const d3=new Date(slotMs2);
         const bdr=(d3.getMinutes()===0)?'border-left:1px solid rgba(255,255,255,.3);':'';
-        out+='<div style="flex:1;background:'+bg+';min-width:0;'+bdr+'"></div>';
+        // Arcering op snapshot voor oude ploeg data (met 20 min tolerantie)
+        let snapArceer = '';
+        if(bg !== '#f4f6fb') {
+          let snapEntMs = null;
+          for(let ei2=entries2.length-1;ei2>=0;ei2--){
+            if(entries2[ei2]._ms<=slotMs2){snapEntMs=entries2[ei2]._ms;break;}
+          }
+          const snapLastChange = lastShiftChangeBefore(slotMs2);
+          if(snapEntMs && snapEntMs < (snapLastChange - SHIFT_GRACE_MS))
+            snapArceer = 'background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.25) 0 2px,transparent 2px 5px);';
+        }
+        out+='<div style="flex:1;background:'+bg+';min-width:0;'+bdr+snapArceer+'"></div>';
       }
       // Snapshot-tijdstip markering
       const snapPct=(TL_PAST_H/TL_TOTAL_H*100).toFixed(1);
@@ -3974,7 +4006,7 @@ function loadLineHistory24h(dept, line, cb) {
   onValue(ref(db, 'operator-history/'+dept+'/'+line), function(snap) {
     const all = snap.val() || {};
     const windowStart = Date.now() - TL_PAST_H * 3600000;
-    const cutoff = Date.now() - (TL_SCROLL_PAST_H+1) * 3600000;
+    const cutoff = Date.now() - Math.max(25, TL_SCROLL_PAST_H+1) * 3600000;
     const entries = [];
     let lastBefore = null;
     Object.entries(all).forEach(function(pair) {
@@ -4017,7 +4049,7 @@ function buildRollingBar(container, entries, opts) {
   const lblRow = document.createElement('div');
   lblRow.style.cssText = 'position:relative;width:100%;height:26px;margin-bottom:3px;pointer-events:none;';
 
-  for (let h=0; h<=TL_TOTAL_H; h++) {
+  for (let h=0; h<=totalH; h++) {
     const slotMs = startMs + h * 3600000;
     const d = new Date(slotMs);
     const pct = (h / TL_TOTAL_H * 100).toFixed(1);
@@ -4040,7 +4072,8 @@ function buildRollingBar(container, entries, opts) {
   inner.style.cssText = 'display:flex;width:100%;height:100%;position:relative;';
 
   const slots = [];
-  for (let s=0; s<TL_SLOTS; s++) {
+  const PB_EXT_SLOTS = Math.round(totalH * 60 / TL_SLOT_MINS);
+  for (let s=0; s<PB_EXT_SLOTS; s++) {
     const slotMs = startMs + s * TL_SLOT_MINS * 60000;
     const isFuture = slotMs > nowMs;
     const block = document.createElement('div');
