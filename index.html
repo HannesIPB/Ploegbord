@@ -4008,7 +4008,8 @@ setInterval(function() { renderLines(); }, 60000);
 function loadLineHistory24h(dept, line, cb) {
   onValue(ref(db, 'operator-history/'+dept+'/'+line), function(snap) {
     const all = snap.val() || {};
-    const windowStart = Date.now() - TL_PAST_H * 3600000;
+    // Carry-over moet tot de linkerrand van de BREEDSTE balk reiken (72 u), niet tot 14 u
+    const windowStart = Date.now() - Math.max(TL_PAST_H, TL_SCROLL_PAST_H) * 3600000;
     const cutoff = Date.now() - Math.max(25, TL_SCROLL_PAST_H+1) * 3600000;
     const entries = [];
     let lastBefore = null;
@@ -4034,14 +4035,17 @@ function loadLineHistory24h(dept, line, cb) {
 }
 
 // Bouw rollende tijdslijnbalk
-// container: DOM element, entries: gesorteerde array, opts: {draggable, onDragEnd}
+// container: DOM element, entries: gesorteerde array,
+// opts: {draggable, onDragEnd, height, pastH, pxPerHour}
 function buildRollingBar(container, entries, opts) {
   opts = opts || {};
+  const pastH     = (opts.pastH != null) ? opts.pastH : TL_SCROLL_PAST_H;
+  const pxPerHour = opts.pxPerHour || TL_PX_PER_HOUR;
   const nowMs = Date.now();
-  const startMs = nowMs - TL_SCROLL_PAST_H * 3600000; // 3 dagen terug
-  const endMs   = nowMs + TL_FUT_H  * 3600000;
-  const totalH  = TL_SCROLL_PAST_H + TL_FUT_H;
-  const totalPx = totalH * TL_PX_PER_HOUR;
+  const startMs = nowMs - pastH * 3600000;
+  const endMs   = nowMs + TL_FUT_H * 3600000;
+  const totalH  = pastH + TL_FUT_H;
+  const totalPx = Math.round(totalH * pxPerHour);
   const p2 = n => String(n).padStart(2,'0');
 
   container.innerHTML = '';
@@ -4052,12 +4056,15 @@ function buildRollingBar(container, entries, opts) {
   const lblRow = document.createElement('div');
   lblRow.style.cssText = 'position:relative;width:100%;height:26px;margin-bottom:3px;pointer-events:none;';
 
+  // Bij smalle uurbreedte niet elk uur labelen (anders overlappen ze)
+  const lblStep = pxPerHour >= 26 ? 1 : (pxPerHour >= 13 ? 2 : 3);
   for (let h=0; h<=totalH; h++) {
     const slotMs = startMs + h * 3600000;
     const d = new Date(slotMs);
-    const pct = (h / TL_TOTAL_H * 100).toFixed(1);
-    const el = document.createElement('div');
     const isMidnight = d.getHours() === 0;
+    if (h % lblStep !== 0 && !isMidnight && h !== totalH) continue;
+    const pct = (h / totalH * 100).toFixed(2);
+    const el = document.createElement('div');
     el.style.cssText = 'position:absolute;left:'+pct+'%;transform:translateX(-50%);text-align:center;white-space:nowrap;';
     el.innerHTML = '<span style="font-size:10px;font-weight:700;color:'+(isMidnight?'#1E3A6E':'#5a6a8a')+';">'+p2lbl(d.getHours())+'</span>';
     if (isMidnight || h === 0) {
@@ -4107,7 +4114,7 @@ function buildRollingBar(container, entries, opts) {
   }
 
   // Now marker (fixed position)
-  const nowPct = TL_SCROLL_PAST_H / totalH * 100;
+  const nowPct = pastH / totalH * 100;
   const nowLine = document.createElement('div');
   nowLine.style.cssText = 'position:absolute;top:0;bottom:0;left:'+nowPct.toFixed(2)+'%;width:2px;background:#e24b4a;z-index:10;pointer-events:none;';
   // Now label
@@ -4124,6 +4131,9 @@ function buildRollingBar(container, entries, opts) {
   container._inner = inner;
   container._startMs = startMs;
   container._nowMs = nowMs;
+  container._totalPx = totalPx;
+  container._pastH = pastH;
+  container._pxPerHour = pxPerHour;
 
   // === DRAG SUPPORT ===
   if (opts.draggable) {
@@ -4234,8 +4244,13 @@ function attachRollingDrag(inner, slots, entries, startMs, nowMs, onDragEnd) {
 }
 
 // Speed chart (SVG step chart)
-function buildSpeedChart(container, entries, height, extraPoint) {
+function buildSpeedChart(container, entries, height, extraPoint, win) {
   height = height || 100;
+  // win: {pastH, futH, widthPx} — laat de grafiek hetzelfde tijdvenster/breedte volgen als de balk erboven
+  win = win || {};
+  const spPastH = (win.pastH != null) ? win.pastH : TL_PAST_H;
+  const spFutH  = (win.futH  != null) ? win.futH  : TL_FUT_H;
+  const spWidth = win.widthPx ? (win.widthPx + 'px') : '100%';
   let speedEntries = entries.filter(function(e){ return e.snelheid !== undefined && e.snelheid !== '' && e.snelheid !== null; });
   // extraPoint: {ms, snelheid} — huidig config-waarde als er geen historiek is
   if (extraPoint && extraPoint.snelheid && !speedEntries.length) {
@@ -4246,15 +4261,15 @@ function buildSpeedChart(container, entries, height, extraPoint) {
     container.style.cssText='display:none;';
     return;
   }
-  container.style.cssText='width:100%;margin-top:6px;';
+  container.style.cssText='width:'+spWidth+';min-width:'+spWidth+';margin-top:6px;';
   const label = document.createElement('div');
   label.style.cssText='font-size:10px;font-weight:700;color:#5a6a8a;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;';
   label.textContent = (dept==='Converting') ? '⚡ Output (stuks/h)' : '⚡ Output (kg/h)';
   container.appendChild(label);
 
   const maxV = Math.max.apply(null, speedEntries.map(function(e){return parseFloat(e.snelheid);})) * 1.15 || 1;
-  const startMs = Date.now() - TL_PAST_H * 3600000;
-  const totalMs = TL_TOTAL_H * 3600000;
+  const startMs = Date.now() - spPastH * 3600000;
+  const totalMs = (spPastH + spFutH) * 3600000;
   const W = 1000, H = height;
 
   const nowX = ((Date.now()-startMs)/totalMs*W).toFixed(1);
@@ -4383,9 +4398,9 @@ function renderP4Panel(line, panel, cardDiv) {
   tlContainer.style.cssText = 'width:100%;margin-bottom:6px;';
   tlScrollWrap.appendChild(tlContainer);
 
-  // Speed chart container
+  // Speed chart container — in dezelfde scroller zodat hij met de balk meeschuift
   const speedContainer = document.createElement('div');
-  panel.appendChild(speedContainer);
+  tlScrollWrap.appendChild(speedContainer);
 
   // Load 24h history and render rolling timeline
   // Definieer onDragEnd als named function zodat refresh hem kan hergebruiken
@@ -4440,12 +4455,13 @@ function renderP4Panel(line, panel, cardDiv) {
     buildRollingBar(tlContainer, entries, {
       height: 80, draggable: true, onDragEnd: panel._onDragEnd
     });
-    // Auto-scroll naar nu (85% van scherm breedte voor nu-markering)
-    requestAnimationFrame(function(){
-      var nowPct = TL_SCROLL_PAST_H/(TL_SCROLL_PAST_H+TL_FUT_H);
-      var totalPx = (TL_SCROLL_PAST_H+TL_FUT_H)*TL_PX_PER_HOUR;
-      tlScrollWrap.scrollLeft = Math.max(0, nowPct*totalPx - tlScrollWrap.clientWidth*0.85);
-    });
+    // Auto-scroll naar nu (nu-markering op 85% van de zichtbare breedte)
+    var scrollPanelToNow = function(){
+      var nowPx = (tlContainer._pastH || TL_SCROLL_PAST_H) * (tlContainer._pxPerHour || TL_PX_PER_HOUR);
+      tlScrollWrap.scrollLeft = Math.max(0, nowPx - tlScrollWrap.clientWidth*0.85);
+    };
+    requestAnimationFrame(scrollPanelToNow);
+    setTimeout(scrollPanelToNow, 60);
     // Drag-to-scroll
     if(!tlScrollWrap._drag){
       tlScrollWrap._drag=true;
@@ -4456,7 +4472,8 @@ function renderP4Panel(line, panel, cardDiv) {
       tlScrollWrap.addEventListener('mousemove',function(e){if(!_dr)return;e.preventDefault();tlScrollWrap.scrollLeft=_sl-(e.pageX-tlScrollWrap.offsetLeft-_sx);});
     }
     const cfgNow = lineConfigData[line] || {};
-    buildSpeedChart(speedContainer, entries, 56, {snelheid: cfgNow.snelheid, ms: Date.now()});
+    buildSpeedChart(speedContainer, entries, 56, {snelheid: cfgNow.snelheid, ms: Date.now()},
+      {pastH: tlContainer._pastH, futH: TL_FUT_H, widthPx: tlContainer._totalPx});
   }
 
   loadLineHistory24h(dept, line, buildBar);
@@ -5049,17 +5066,42 @@ window.openTimelineModal = function(line) {
       body.appendChild(curDiv);
     }
 
-    // Rollende tijdslijn
-    const barContainer = document.createElement('div');
-    body.appendChild(barContainer);
-    buildRollingBar(barContainer, entries, {height: 72, draggable: false});
+    // Rollende tijdslijn — scrollbaar, opent op de laatste uren
+    const TL_MODAL_VIEW_H = 18;   // zichtbaar venster: 16 u verleden + 2 u toekomst
+    const tlWrap = document.createElement('div');
+    tlWrap.style.cssText = 'overflow-x:auto;overflow-y:hidden;width:100%;cursor:grab;-webkit-overflow-scrolling:touch;padding-bottom:6px;';
+    body.appendChild(tlWrap);
 
-    // Snelheidsgrafiek
+    const barContainer = document.createElement('div');
+    tlWrap.appendChild(barContainer);
+
+    const wrapW = tlWrap.clientWidth || 560;
+    const modalPxPerHour = Math.max(14, wrapW / TL_MODAL_VIEW_H);
+    buildRollingBar(barContainer, entries, {height: 72, draggable: false, pxPerHour: modalPxPerHour});
+
+    // Scroll zo dat 'nu' rechts staat → laatste 16 u meteen in beeld
+    const scrollToNow = function() {
+      const nowPx = (barContainer._pastH || TL_SCROLL_PAST_H) * (barContainer._pxPerHour || modalPxPerHour);
+      tlWrap.scrollLeft = Math.max(0, nowPx - tlWrap.clientWidth * (16/TL_MODAL_VIEW_H));
+    };
+    requestAnimationFrame(scrollToNow);
+    setTimeout(scrollToNow, 60);
+
+    // Sleep-scroll (muis) — touch scrollt native
+    (function(){
+      let dr=false, sx=0, sl=0;
+      tlWrap.addEventListener('mousedown', function(e){ dr=true; sx=e.pageX; sl=tlWrap.scrollLeft; tlWrap.style.cursor='grabbing'; });
+      ['mouseup','mouseleave'].forEach(function(ev){ tlWrap.addEventListener(ev, function(){ dr=false; tlWrap.style.cursor='grab'; }); });
+      tlWrap.addEventListener('mousemove', function(e){ if(!dr) return; e.preventDefault(); tlWrap.scrollLeft = sl - (e.pageX - sx); });
+    })();
+
+    // Snelheidsgrafiek — in dezelfde scroller, zelfde tijdvenster als de balk
     const speedDiv = document.createElement('div');
     speedDiv.style.cssText = 'margin-top:8px;';
-    body.appendChild(speedDiv);
+    tlWrap.appendChild(speedDiv);
     const cfgLine = lineConfigData[currentTimelineLine] || {};
-    buildSpeedChart(speedDiv, entries, 100, {snelheid: cfgLine.snelheid, ms: Date.now()});
+    buildSpeedChart(speedDiv, entries, 100, {snelheid: cfgLine.snelheid, ms: Date.now()},
+      {pastH: barContainer._pastH, futH: TL_FUT_H, widthPx: barContainer._totalPx});
 
     // Meldingen lijst
     const meldLbl = document.createElement('div');
