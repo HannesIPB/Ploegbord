@@ -1939,10 +1939,45 @@ window.takeSnapshot=function(auto=false){
     })
   );
 
-  Promise.all(histPromises).then(results => {
+  // Ploegcontrole (schuifpasser / trapladder) uit tijdslijn-machines meenemen
+  const controlePromise = new Promise(resolve => {
+    onValue(ref(db,'ploegcontrole/'+snapDept), snap => {
+      const perPloeg = snap.val() || {};
+      const uit = [];
+      Object.entries(perPloeg).forEach(([ploegKey, personen]) => {
+        if(!personen || typeof personen !== 'object') return;
+        Object.entries(personen).forEach(([pKey, rec]) => {
+          if(!rec || !rec.ts || rec.ts < cutoffMs) return;
+          uit.push(Object.assign({}, rec, {_ploeg: ploegKey, _persoon: pKey}));
+        });
+      });
+      uit.sort((a,b) => a.ts - b.ts);
+      resolve(uit);
+    }, {onlyOnce: true});
+  }).catch(() => []);
+
+  // Lijnbezetting: wie stond bij het afsluiten op welke lijn
+  const bezettingPromise = new Promise(resolve => {
+    onValue(ref(db,'lijnbezetting/'+snapDept), snap => {
+      const ruw = snap.val() || {}, uit = {};
+      Object.entries(ruw).forEach(([lijn, personen]) => {
+        if(!personen || typeof personen !== 'object') return;
+        const namen = Object.values(personen)
+          .filter(r => r && r.sinds && r.sinds >= cutoffMs)
+          .sort((a,b) => a.sinds - b.sinds)
+          .map(r => ({naam: r.naam || '—', sinds: r.sinds}));
+        if(namen.length) uit[lijn] = namen;
+      });
+      resolve(uit);
+    }, {onlyOnce: true});
+  }).catch(() => ({}));
+
+  Promise.all([Promise.all(histPromises), controlePromise, bezettingPromise]).then(([results, controles, bezetting]) => {
     const lineHistory = {};
     results.forEach(r => { lineHistory[r.line] = r.entries; });
     snapData.lineHistory = lineHistory;
+    snapData.ploegcontrole = controles;
+    snapData.lijnbezetting = bezetting;
     push(ref(db,'archive/'+snapDept), snapData);
     showToast(auto?'📸 Automatische snapshot opgeslagen ✓':'📸 Snapshot opgeslagen in archief ✓');
   }).catch(() => {
@@ -2489,6 +2524,8 @@ function renderArch(){
       sNotes('Algemene opmerkingen 📝',snap.general)+
       sSec('Technische Dienst 🔧',snap.td,v=>'<div class="sitem"><div><div style="font-weight:600;">'+(v.technician||'TD')+'</div><div style="font-size:11px;color:var(--ipb-text-muted);">'+(v.description||'')+'</div></div><span class="badge '+(TC[v.status]||'st-ok')+'" style="cursor:default">'+(TL[v.status]||v.status)+'</span></div>')+
       sEsc('Escalaties ↑',snap.escalations)+
+      sBezetting(snap.lijnbezetting, snap.dept)+
+      sPloegcontrole(snap.ploegcontrole)+
     '</div>';
     list.appendChild(card);
     }catch(err){
@@ -2500,6 +2537,56 @@ function renderArch(){
     }
   });
 }
+/* Controle bij ploegovername — schuifpasser en trapladder (uit tijdslijn-machines) */
+function sBezetting(map, snapDept){
+  if(!map || !Object.keys(map).length) return '';
+  const p2 = n => String(n).padStart(2,'0');
+  const volgorde = {'P1':['L11','L12','L14','L15','L16','L17','L18','IDE'],'Ploegchef':['L11','L12','L14','L15','L16','L17','L18','IDE'],'P4':['L41','L42'],'Converting':['swissq','cuir','kirby','cauhe','iijima','iberica','bsp','autolas','manlas','krimpfolie']};
+  const lijnen = (volgorde[snapDept] || Object.keys(map)).filter(l => map[l] && map[l].length);
+  if(!lijnen.length) return '';
+  const rij = function(lijn){
+    const namen = map[lijn].map(function(r){
+      const d = new Date(r.sinds);
+      return '<span style="display:inline-block;background:#6DB33F;color:#fff;font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;margin:2px 4px 2px 0;white-space:nowrap;">'
+        + (r.naam||'—') + ' <span style="opacity:.75;font-weight:600;">vanaf ' + p2(d.getHours())+':'+p2(d.getMinutes()) + '</span></span>';
+    }).join('');
+    return '<div class="sitem" style="display:block;">'
+      + '<div style="font-weight:700;margin-bottom:3px;">' + (typeof lineLabel==='function'?lineLabel(lijn):lijn) + '</div>'
+      + '<div>' + namen + '</div></div>';
+  };
+  return '<div class="ssec"><div class="sstitle">Bezetting van de lijnen \uD83C\uDFED</div>'
+    + '<div class="sgrid">' + lijnen.map(rij).join('') + '</div></div>';
+}
+
+function sPloegcontrole(lijst){
+  if(!lijst || !lijst.length) return '';
+  const p2 = n => String(n).padStart(2,'0');
+  const rij = function(rec){
+    const d = new Date(rec.ts);
+    const tijd = p2(d.getDate())+'/'+p2(d.getMonth()+1)+' '+p2(d.getHours())+':'+p2(d.getMinutes());
+    const punt = function(label, waarde, opmerking){
+      const ok = waarde === 'ok';
+      return '<span style="display:inline-flex;align-items:center;gap:5px;margin-right:14px;">'
+        + '<span style="width:9px;height:9px;border-radius:50%;background:'+(ok?'#6DB33F':'#e24b4a')+';flex-shrink:0;"></span>'
+        + '<span style="font-weight:600;">'+label+'</span>'
+        + '<span style="color:'+(ok?'#2a6018':'#8b1a1a')+';font-weight:700;">'+(ok?'in orde':'NIET in orde')+'</span>'
+        + (!ok && opmerking ? '<span style="color:var(--ipb-text-muted);font-style:italic;"> — '+opmerking+'</span>' : '')
+        + '</span>';
+    };
+    const probleem = (rec.schuifpasser!=='ok') || (rec.trapladder!=='ok');
+    return '<div class="sitem" style="'+(probleem?'background:#fdf4f4;':'')+'display:block;">'
+      + '<div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:4px;">'
+      + '<span style="font-weight:700;">'+(rec.naam||'—')+'</span>'
+      + '<span style="font-size:11px;color:var(--ipb-text-muted);">'+tijd+'</span></div>'
+      + '<div style="font-size:12px;line-height:1.7;">'
+      + punt('Schuifpasser', rec.schuifpasser, rec.schuifpasserOpmerking)
+      + punt('Trapladder', rec.trapladder, rec.trapladderOpmerking)
+      + '</div></div>';
+  };
+  return '<div class="ssec"><div class="sstitle">Controle bij ploegovername 📋</div>'
+    + '<div class="sgrid">' + lijst.map(rij).join('') + '</div></div>';
+}
+
 function sOD(snap){
   if(!snap.chief&&!snap.ho)return '';
   const inBlockStyle = snap.overnemerAfwezig ? 'border-color:#f5a623;background:#fff8ec;' : '';
@@ -2967,8 +3054,25 @@ function renderLines() {
       lblRow.appendChild(l);
     }
 
+    // Wie staat er nu op deze lijn
+    const bezNamen = bezettingVoor(line);
+    const bezRow = document.createElement('div');
+    if (bezNamen.length) {
+      bezRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;margin-bottom:5px;';
+      bezNamen.forEach(function(n){
+        const t = document.createElement('span');
+        t.style.cssText = 'background:#6DB33F;color:#fff;font-size:9.5px;font-weight:800;padding:2px 8px;border-radius:20px;white-space:nowrap;';
+        t.textContent = '\uD83D\uDC64 ' + n;
+        bezRow.appendChild(t);
+      });
+    } else {
+      bezRow.style.cssText = 'font-size:9.5px;color:#b0bcd8;font-weight:700;margin-bottom:5px;';
+      bezRow.textContent = 'Niemand aangemeld op deze lijn';
+    }
+
     div.appendChild(topRow);
     div.appendChild(opRow);
+    div.appendChild(bezRow);
     if (line === 'IDE') {
       const ideCfg = ideConfigData || {};
       // Zoek meest recente historiek-entry (<=nu) met een toerentalwaarde — zelfde bron als operatorspagina
@@ -3044,6 +3148,20 @@ let lineConfigData = {}; // line -> {snelheid, snelheid_ts}
 let lineConfigUnsubs = {};
 let ideConfigData = {}; // IDE config {toerental, materiaal, output, filterwissel}
 let ideConfigUnsub = null;
+let bezettingData = {};  // lijn -> {operatorKey: {naam, sinds}} — wie staat waar (uit tijdslijn-machines)
+let bezettingUnsub = null;
+
+/* Een aanduiding geldt voor de lopende ploeg; oudere tonen we niet meer. */
+function bezettingGeldig(rec){
+  if(!rec || !rec.sinds) return false;
+  let grens = 0;
+  try { grens = lastShiftChangeBefore(Date.now()); } catch(e) { grens = Date.now() - 9*3600000; }
+  return rec.sinds >= grens - 3600000;
+}
+function bezettingVoor(line){
+  const pers = bezettingData[line] || {};
+  return Object.keys(pers).filter(k => bezettingGeldig(pers[k])).map(k => pers[k].naam || k);
+}
 
 function rebindOpStatus() {
   if (opStatusUnsub) opStatusUnsub();
@@ -3061,6 +3179,13 @@ function rebindOpStatus() {
   if (ideConfigUnsub) try{ideConfigUnsub();}catch(e){}
   ideConfigUnsub = onValue(ref(db,'operator-ide-config/'+dept), function(snap) {
     ideConfigData = snap.val() || {};
+    renderLines();
+  });
+
+  // Wie staat op welke lijn (operators duiden dit aan in tijdslijn-machines)
+  if (bezettingUnsub) try{bezettingUnsub();}catch(e){}
+  bezettingUnsub = onValue(ref(db,'lijnbezetting/'+dept), function(snap) {
+    bezettingData = snap.val() || {};
     renderLines();
   });
 
